@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace cloudatlas
+namespace CloudAtlas
 {
     class Program
     {
