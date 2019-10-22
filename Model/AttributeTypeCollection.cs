@@ -30,20 +30,20 @@ namespace CloudAtlas.Model
 
         public override bool IsCollection() => true;
 
-        public static AttributeType ComputeElementType(IEnumerable<Value> collection)
+        public static AttributeType ComputeElementType(IList<Value> collection)
         {
             AttributeType mainType = null;
 
-            foreach (var v in collection)
+            for (var i = 0; i < collection.Count; i++)
             {
-                if (v.IsNull)
-                    v = ValueNull.Instance;
+                if (collection[i].IsNull)
+                    collection[i] = ValueNull.Instance;
                 if (mainType == null)
                 {
-                    if (v.AttributeType.PrimaryType != PrimaryType.Null)
-                        mainType = v.AttributeType;
+                    if (collection[i].AttributeType.PrimaryType != PrimaryType.Null)
+                        mainType = collection[i].AttributeType;
                 }
-                else if (!mainType.IsCompatible(v.AttributeType))
+                else if (!mainType.IsCompatible(collection[i].AttributeType))
                     throw new ArgumentException("Collection has non-null elements of different types.");
             }
 

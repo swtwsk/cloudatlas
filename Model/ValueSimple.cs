@@ -8,10 +8,11 @@ namespace CloudAtlas.Model
         public T Value
         {
             get => GetValue;
-            protected set => _value = value;
+            protected set => SetValue(value);
         }
 
         protected virtual T GetValue => _value;
+        protected virtual void SetValue(T value) => _value = value;
 
         public ValueSimple(T value)
         {

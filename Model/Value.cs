@@ -62,7 +62,7 @@ namespace CloudAtlas.Model
             if (obj == null || GetType() != obj.GetType())
                 return false;
 
-            return ((ValueBoolean) IsEqual((Value) obj)).Value.Wrapped;
+            return ((ValueBoolean) IsEqual((Value) obj)).Value.Ref;
         }
 
         public override string ToString() => ((ValueString) ConvertTo(AttributeTypePrimitive.String)).Value;

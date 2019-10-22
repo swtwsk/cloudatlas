@@ -2,9 +2,9 @@ using System;
 
 namespace CloudAtlas.Model
 {
-    public class ValueDuration : ValueSimple<NullableWrapper<long>>
+    public class ValueDuration : ValueSimple<RefStruct<long>>
     {
-        public ValueDuration(NullableWrapper<long> value) : base(value) {}
+        public ValueDuration(RefStruct<long> value) : base(value) {}
 
         public ValueDuration(long seconds, long milliseconds) : this(seconds * 1000L + milliseconds) {}
 

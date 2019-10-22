@@ -3,9 +3,9 @@ using CloudAtlas.Model.Exceptions;
 
 namespace CloudAtlas.Model
 {
-    public class ValueDouble : ValueSimple<NullableWrapper<double>>
+    public class ValueDouble : ValueSimple<RefStruct<double>>
     {
-        public ValueDouble(NullableWrapper<double> value) : base(value) {}
+        public ValueDouble(RefStruct<double> value) : base(value) {}
 
         public override AttributeType AttributeType => AttributeTypePrimitive.Double;
         public override Value ConvertTo(AttributeType to)
@@ -68,6 +68,6 @@ namespace CloudAtlas.Model
             return this / (value as ValueDouble);
         }
 
-        public override Value Negate() => new ValueDouble(IsNull ? null : (-Value.Wrapped).ToNullableWrapper());
+        public override Value Negate() => new ValueDouble(IsNull ? null : (-Value.Ref).ToNullableWrapper());
     }
 }

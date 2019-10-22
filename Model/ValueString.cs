@@ -32,7 +32,7 @@ namespace CloudAtlas.Model
                     }
                     catch (FormatException e)  // TODO: ?
                     {
-                        return new ValueTime(null);
+                        return new ValueTime((RefStruct<long>) null);
                     }
                 default:
                     throw new UnsupportedConversionException(AttributeType, to);

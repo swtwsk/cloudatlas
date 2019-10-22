@@ -2,9 +2,9 @@ using CloudAtlas.Model.Exceptions;
 
 namespace CloudAtlas.Model
 {
-    public class ValueBoolean : ValueSimple<NullableWrapper<bool>>
+    public class ValueBoolean : ValueSimple<RefStruct<bool>>
     {
-        public ValueBoolean(NullableWrapper<bool> value) : base(value) {}
+        public ValueBoolean(RefStruct<bool> value) : base(value) {}
         public ValueBoolean(bool value) : base(value) {}
         
         public override AttributeType AttributeType => AttributeTypePrimitive.Boolean;
@@ -24,7 +24,7 @@ namespace CloudAtlas.Model
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
                 return new ValueBoolean(null);
-            return new ValueBoolean(!Value.Wrapped && ((ValueBoolean) value).Value.Wrapped);
+            return new ValueBoolean(!Value.Ref && ((ValueBoolean) value).Value.Ref);
         }
         
         public override Value And(Value value)
@@ -32,7 +32,7 @@ namespace CloudAtlas.Model
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
                 return new ValueBoolean(null);
-            return new ValueBoolean(Value.Wrapped && ((ValueBoolean) value).Value.Wrapped);
+            return new ValueBoolean(Value.Ref && ((ValueBoolean) value).Value.Ref);
         }
         
         public override Value Or(Value value)
@@ -40,7 +40,7 @@ namespace CloudAtlas.Model
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
                 return new ValueBoolean(null);
-            return new ValueBoolean(Value.Wrapped || ((ValueBoolean) value).Value.Wrapped);
+            return new ValueBoolean(Value.Ref || ((ValueBoolean) value).Value.Ref);
         }
 
         public override Value Negate() => new ValueBoolean(IsNull ? null : (!Value).Value.ToNullableWrapper());

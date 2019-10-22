@@ -3,9 +3,9 @@ using CloudAtlas.Model.Exceptions;
 
 namespace CloudAtlas.Model
 {
-    public class ValueInt : ValueSimple<NullableWrapper<long>>
+    public class ValueInt : ValueSimple<RefStruct<long>>
     {
-        public ValueInt(NullableWrapper<long> value) : base(value) {}
+        public ValueInt(RefStruct<long> value) : base(value) {}
         public ValueInt(long value) : base(value) {}
 
         public override AttributeType AttributeType => AttributeTypePrimitive.Integer;
@@ -70,7 +70,7 @@ namespace CloudAtlas.Model
                 throw new ArithmeticException("Division by zero.");
             return IsNull
                 ? (Value) new ValueDouble(null)
-                : (Value) new ValueDouble((double) Value.Wrapped / ((ValueInt) value).Value);
+                : (Value) new ValueDouble((double) Value.Ref / ((ValueInt) value).Value);
         }
 	
         public override Value Modulo(Value value) {
@@ -83,7 +83,7 @@ namespace CloudAtlas.Model
         }
 	
         public override Value Negate() {
-            return new ValueInt(IsNull ? null : (-Value.Wrapped).ToNullableWrapper());
+            return new ValueInt(IsNull ? null : (-Value.Ref).ToNullableWrapper());
         }
     }
 }
