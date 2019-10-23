@@ -1,10 +1,8 @@
 using System;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject()]
-    public class AttributeTypePrimitive : AttributeType
+    public sealed class AttributeTypePrimitive : AttributeType
     {
         public static AttributeTypePrimitive Boolean = new AttributeTypePrimitive(PrimaryType.Boolean);
         public static AttributeTypePrimitive Contact = new AttributeTypePrimitive(PrimaryType.Contact);
@@ -15,6 +13,7 @@ namespace CloudAtlas.Model
         public static AttributeTypePrimitive String = new AttributeTypePrimitive(PrimaryType.String);
         public static AttributeTypePrimitive Time = new AttributeTypePrimitive(PrimaryType.Time);
 
+        private AttributeTypePrimitive() {}
         private AttributeTypePrimitive(PrimaryType primaryType) : base(primaryType)
         {
             switch (primaryType)

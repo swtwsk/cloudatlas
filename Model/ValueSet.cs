@@ -3,17 +3,18 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
+using Ceras;
 using CloudAtlas.Model.Exceptions;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject]
     public class ValueSet : ValueSimple<ISet<Value>>, ISet<Value>
     {
-        private readonly AttributeTypeCollection _type;
+        [Include] private readonly AttributeTypeCollection _type;
         private ISet<Value> Set => base.GetValue;
 
+        private ValueSet() {}
+        
         public ValueSet(AttributeType elementType) : base(new HashSet<Value>())
         {
             _type = new AttributeTypeCollection(PrimaryType.Set, elementType);
@@ -25,7 +26,7 @@ namespace CloudAtlas.Model
                 Value = value;
         }
 
-        [IgnoreMember] public override AttributeType AttributeType => _type;
+        public override AttributeType AttributeType => _type;
         public override Value ConvertTo(AttributeType to)
         {
             switch (to.PrimaryType)
@@ -145,7 +146,7 @@ namespace CloudAtlas.Model
 
         public bool Remove(Value item) => Set.Remove(item);
 
-        [IgnoreMember] public int Count => Set.Count;
-        [IgnoreMember] public bool IsReadOnly => Set.IsReadOnly;
+        [Exclude] public int Count => Set.Count;
+        [Exclude] public bool IsReadOnly => Set.IsReadOnly;
     }
 }

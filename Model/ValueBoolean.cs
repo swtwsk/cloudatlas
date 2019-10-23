@@ -1,15 +1,14 @@
 using CloudAtlas.Model.Exceptions;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject()]
     public class ValueBoolean : ValueSimple<RefStruct<bool>>
     {
+        private ValueBoolean() {}
         public ValueBoolean(RefStruct<bool> value) : base(value) {}
         public ValueBoolean(bool value) : base(value) {}
         
-        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Boolean;
+        public override AttributeType AttributeType => AttributeTypePrimitive.Boolean;
         public override Value ConvertTo(AttributeType to)
         {
             return to.PrimaryType switch

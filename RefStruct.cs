@@ -1,12 +1,8 @@
-using MessagePack;
-
 namespace CloudAtlas
 {
-    [MessagePackObject]
     public class RefStruct<T>
         where T : struct
     {
-        [Key(1)]
         public T Ref { get; set; }
         
         public static implicit operator RefStruct<T>(T value) => new RefStruct<T> {Ref = value};

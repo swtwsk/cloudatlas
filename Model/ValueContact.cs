@@ -1,16 +1,12 @@
 using System.Net;
 using CloudAtlas.Model.Exceptions;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject]
     public class ValueContact : Value
     {
-        [Key(11)]
-        public PathName Name { get; }
-        [Key(12)]
-        public IPAddress Address { get; } // TODO: Check equivalence with InetAddress
+        public PathName Name { get; private set; }
+        public IPAddress Address { get; private set; } // TODO: Check equivalence with InetAddress
 
         private ValueContact() {}
         public ValueContact(PathName name, IPAddress address)
@@ -19,8 +15,8 @@ namespace CloudAtlas.Model
             Address = address;
         }
         
-        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Contact;
-        [IgnoreMember] public override bool IsNull => Name == null || Address == null;
+        public override AttributeType AttributeType => AttributeTypePrimitive.Contact;
+        public override bool IsNull => Name == null || Address == null;
         public override Value ConvertTo(AttributeType to)
         {
             return to.PrimaryType switch

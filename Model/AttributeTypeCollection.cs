@@ -1,15 +1,13 @@
 using System;
 using System.Collections.Generic;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject()]
     public class AttributeTypeCollection : AttributeType
     {
-        [Key(2)]
-        public AttributeType ElementType { get; }
-        
+        public AttributeType ElementType { get; private set; }
+     
+        private AttributeTypeCollection() {}
         public AttributeTypeCollection(PrimaryType primaryType, AttributeType elementType) : base(primaryType)
         {
             switch (primaryType)

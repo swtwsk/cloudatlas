@@ -1,17 +1,14 @@
 using System;
 using CloudAtlas.Model.Exceptions;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject()]
     public class ValueInt : ValueSimple<RefStruct<long>>
     {
-        protected ValueInt() {}
+        private ValueInt() {}
         public ValueInt(RefStruct<long> value) : base(value) {}
         public ValueInt(long value) : base(value) {}
 
-        [IgnoreMember]
         public override AttributeType AttributeType => AttributeTypePrimitive.Integer;
         public override Value ConvertTo(AttributeType to)
         {

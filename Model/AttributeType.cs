@@ -1,21 +1,18 @@
-using MessagePack;
-
 namespace CloudAtlas.Model
 {
     public enum PrimaryType {
         Boolean, Contact, Double, Duration, Int, List, Null, Set, String, Time,
     }
     
-    [MessagePackObject]
     public abstract class AttributeType
     {
+        protected AttributeType() {}
         public AttributeType(PrimaryType primaryType)
         {
             PrimaryType = primaryType;
         }
         
-        [Key(1)]
-        public PrimaryType PrimaryType { get; }
+        public PrimaryType PrimaryType { get; private set; }
 
         /// <summary>
         /// Indicates whether this type can be implicitly "cast" to given one and vice verse. This is introduced to deal with

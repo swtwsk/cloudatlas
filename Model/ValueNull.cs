@@ -1,8 +1,5 @@
-using MessagePack;
-
 namespace CloudAtlas.Model
 {
-    [MessagePackObject]
     public class ValueNull : Value
     {
         private static ValueNull _instance = null;
@@ -11,8 +8,8 @@ namespace CloudAtlas.Model
 
         private ValueNull() {}
         
-        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Null;
-        [IgnoreMember] public override bool IsNull => true;
+        public override AttributeType AttributeType => AttributeTypePrimitive.Null;
+        public override bool IsNull => true;
         public override Value ConvertTo(AttributeType to)
         {
             return to.PrimaryType switch

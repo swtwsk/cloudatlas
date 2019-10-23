@@ -1,13 +1,13 @@
 using System;
-using MessagePack;
 
 namespace CloudAtlas.Model
 {
-    [MessagePackObject]
     public class ValueDuration : ValueSimple<RefStruct<long>>
     {
+        private ValueDuration() {}
+        
         public ValueDuration(RefStruct<long> value) : base(value) {}
-
+        
         public ValueDuration(long seconds, long milliseconds) : this(seconds * 1000L + milliseconds) {}
 
         public ValueDuration(long minutes, long seconds, long milliseconds)
@@ -69,7 +69,7 @@ namespace CloudAtlas.Model
             throw new NotImplementedException();
         }
 
-        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Duration;
+        public override AttributeType AttributeType => AttributeTypePrimitive.Duration;
 
         public override Value ConvertTo(AttributeType to)
         {
