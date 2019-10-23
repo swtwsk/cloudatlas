@@ -1,17 +1,21 @@
+using Ceras;
+
 namespace CloudAtlas.Model
 {
     public abstract class ValueSimple<T> : Value
         where T : class
-    {
+    {    
+        [Include]
         private T _value;
 
+        [Exclude]
         public T Value
         {
-            get => GetValue;
+            get => GetValue();
             set => SetValue(value);
         }
 
-        protected virtual T GetValue => _value;
+        protected virtual T GetValue() => _value;
         protected virtual void SetValue(T value) => _value = value;
      
         protected ValueSimple() {}

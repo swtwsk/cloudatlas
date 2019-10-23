@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Text;
 using Ceras;
 using CloudAtlas.Model.Exceptions;
 
@@ -11,9 +12,10 @@ namespace CloudAtlas.Model
     {
         [Include] private AttributeTypeCollection _type;
 
-        [Include] private IList<Value> List => base.GetValue;
+        [Exclude] private IList<Value> List => base.GetValue();
 
-        private ValueList() {}
+        private ValueList() : base(new List<Value>()) {}
+        
         public ValueList(IList<Value> value, AttributeType elementType) : this(elementType)
         {
             if (value != null)
@@ -43,7 +45,21 @@ namespace CloudAtlas.Model
                     l.Append(this);
                     return new ValueSet(l, _type.ElementType);
                 case PrimaryType.String:
-                    return Value == null ? ValueString.NullString : new ValueString(Value.ToString());
+                    if (Value == null)
+                        return ValueString.NullString;
+                    var sb = new StringBuilder();
+                    sb.Append("{");
+                    var notFirst = false;
+                    foreach (var v in Value)
+                    {
+                        if (notFirst)
+                            sb.Append(", ");
+                        else
+                            notFirst = true;
+                        sb.Append(v);
+                    }
+                    sb.Append("}");
+                    return new ValueString(sb.ToString());
                 default:
                     throw new UnsupportedConversionException(AttributeType, to);
             }
@@ -51,7 +67,7 @@ namespace CloudAtlas.Model
 
         public override Value GetDefaultValue() => new ValueList(_type.ElementType);
 
-        protected override IList<Value> GetValue => List?.ToImmutableList();
+        protected override IList<Value> GetValue() => List?.ToImmutableList();
         protected override void SetValue(IList<Value> value)
         {
             if (value == null)
@@ -61,7 +77,7 @@ namespace CloudAtlas.Model
             else
             {
                 base.SetValue(new List<Value>());
-                foreach (var e in List)
+                foreach (var e in value)
                     (this as IList<Value>).Add(e);
             }
         }

@@ -10,10 +10,10 @@ namespace CloudAtlas.Model
 {
     public class ValueSet : ValueSimple<ISet<Value>>, ISet<Value>
     {
-        [Include] private readonly AttributeTypeCollection _type;
-        private ISet<Value> Set => base.GetValue;
+        [Include] private AttributeTypeCollection _type;
+        [Exclude] private ISet<Value> Set => base.GetValue();
 
-        private ValueSet() {}
+        private ValueSet() : base(new HashSet<Value>()) {}
         
         public ValueSet(AttributeType elementType) : base(new HashSet<Value>())
         {
@@ -65,19 +65,19 @@ namespace CloudAtlas.Model
             }
         }
 
-        public override Value GetDefaultValue() => new ValueSet(((AttributeTypeCollection)AttributeType).ElementType);
+        public override Value GetDefaultValue() => new ValueSet(_type.ElementType);
 
-        protected override ISet<Value> GetValue => Set?.ToImmutableHashSet();
+        protected override ISet<Value> GetValue() => Set?.ToImmutableHashSet();
         protected override void SetValue(ISet<Value> value)
         {
-            if (Set == null)
+            if (value == null)
             {
                 base.SetValue(null);
             }
             else
             {
                 base.SetValue(new HashSet<Value>());
-                foreach (var e in Set)
+                foreach (var e in value)
                     (this as ISet<Value>).Add(e);
             }
         }
@@ -87,7 +87,7 @@ namespace CloudAtlas.Model
             SameTypesOrThrow(value, Operation.Add);
             if (IsNull || value.IsNull)
                 return new ValueSet(null, ((AttributeTypeCollection)AttributeType).ElementType);
-            var result = new HashSet<Value>(((ValueSet)Value).Value);
+            var result = new HashSet<Value>(((ValueSet)value).Value);  // TODO: check logic here and in List
             return new ValueSet(result, ((AttributeTypeCollection)AttributeType).ElementType);
         }
 
