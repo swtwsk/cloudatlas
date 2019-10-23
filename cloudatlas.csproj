@@ -6,7 +6,8 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="protobuf-net" Version="2.4.3" />
+    <PackageReference Include="MessagePack" Version="1.8.74" />
+    <PackageReference Include="MessagePackAnalyzer" Version="1.8.74" />
   </ItemGroup>
 
 </Project>

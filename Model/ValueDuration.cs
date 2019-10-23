@@ -1,7 +1,9 @@
 using System;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ValueDuration : ValueSimple<RefStruct<long>>
     {
         public ValueDuration(RefStruct<long> value) : base(value) {}
@@ -67,7 +69,7 @@ namespace CloudAtlas.Model
             throw new NotImplementedException();
         }
 
-        public override AttributeType AttributeType => AttributeTypePrimitive.Duration;
+        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Duration;
 
         public override Value ConvertTo(AttributeType to)
         {

@@ -1,9 +1,12 @@
+using MessagePack;
+
 namespace CloudAtlas.Model
 {
     public enum PrimaryType {
         Boolean, Contact, Double, Duration, Int, List, Null, Set, String, Time,
     }
     
+    [MessagePackObject]
     public abstract class AttributeType
     {
         public AttributeType(PrimaryType primaryType)
@@ -11,6 +14,7 @@ namespace CloudAtlas.Model
             PrimaryType = primaryType;
         }
         
+        [Key(1)]
         public PrimaryType PrimaryType { get; }
 
         /// <summary>

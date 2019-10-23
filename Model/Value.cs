@@ -1,14 +1,20 @@
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
     /// <summary>
     /// A single value stored as an attribute.
     /// </summary>
+    [MessagePackObject()]
     public abstract class Value
     {
+        protected Value() {}
+        
+        [Key(0)]
         public abstract AttributeType AttributeType { get; }
         
+        [IgnoreMember]
         public abstract bool IsNull { get; }
 
         public abstract Value ConvertTo(AttributeType to);

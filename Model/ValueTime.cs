@@ -1,8 +1,10 @@
 using System;
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ValueTime : ValueSimple<RefStruct<long>>
     {
         public const string TimeFormat = "yyyy/MM/dd HH:mm:ss.fff";
@@ -11,7 +13,7 @@ namespace CloudAtlas.Model
         public ValueTime(long value) : base(value) {}
         public ValueTime(string time) : this(DateTime.ParseExact(time, TimeFormat, null).GetTime()) {}
 
-        public override AttributeType AttributeType => AttributeTypePrimitive.Time;
+        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Time;
 
         public override Value IsLowerThan(Value value)
         {

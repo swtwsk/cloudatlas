@@ -1,13 +1,16 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class AttributesMap : IEnumerable<KeyValuePair<Attribute, Value>>, ICloneable
     {
-        private IDictionary<Attribute, Value> _map = new Dictionary<Attribute,Value>();
-        
+        [Key(0)]
+        private Dictionary<Attribute, Value> _map = new Dictionary<Attribute,Value>(new Attribute.AttributeComparer());
+
         private void CheckNulls(Attribute attribute, Value value) {
             if(attribute == null)
                 throw new NullReferenceException("The attribute cannot be null.");
@@ -57,6 +60,7 @@ namespace CloudAtlas.Model
                 throw new NullReferenceException("The attribute cannot be null");
         }
         
+        [IgnoreMember]
         public Value this[Attribute attribute]
         {
             get => Get(attribute);

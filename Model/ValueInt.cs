@@ -1,17 +1,21 @@
 using System;
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject()]
     public class ValueInt : ValueSimple<RefStruct<long>>
     {
+        protected ValueInt() {}
         public ValueInt(RefStruct<long> value) : base(value) {}
         public ValueInt(long value) : base(value) {}
 
+        [IgnoreMember]
         public override AttributeType AttributeType => AttributeTypePrimitive.Integer;
         public override Value ConvertTo(AttributeType to)
         {
-            return AttributeType.PrimaryType switch
+            return to.PrimaryType switch
             {
                 PrimaryType.Double => (Value) new ValueDouble(Value == null
                     ? null
@@ -24,7 +28,6 @@ namespace CloudAtlas.Model
         }
 
         public override Value GetDefaultValue() => new ValueInt(0L);
-
 
         public static ValueBoolean operator <(ValueInt a, ValueInt b) => new ValueBoolean(a.Value < b.Value);
         public static ValueBoolean operator >(ValueInt a, ValueInt b) => new ValueBoolean(a.Value > b.Value);

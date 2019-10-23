@@ -1,19 +1,24 @@
+using MessagePack;
+
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public abstract class ValueSimple<T> : Value
         where T : class
     {
         private T _value;
 
+        [Key(1)]
         public T Value
         {
             get => GetValue;
-            protected set => SetValue(value);
+            set => SetValue(value);
         }
 
-        protected virtual T GetValue => _value;
+        [IgnoreMember] protected virtual T GetValue => _value;
         protected virtual void SetValue(T value) => _value = value;
-
+     
+        protected ValueSimple() {}
         public ValueSimple(T value)
         {
             Value = value;
@@ -22,7 +27,7 @@ namespace CloudAtlas.Model
         // TODO: HashCode should be immutable
         public override int GetHashCode() => Value.GetHashCode();
 
-        public override bool IsNull => Value == null;
+        [IgnoreMember] public override bool IsNull => Value == null;
 
         public override Value IsEqual(Value value)
         {

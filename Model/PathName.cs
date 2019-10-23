@@ -3,18 +3,24 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Text.RegularExpressions;
-using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class PathName
     {
         public static PathName Root = new PathName("/");
 
+        [Key(1)]
         private List<string> _components;
+        [IgnoreMember]
         public IList<string> Components => _components.ToImmutableList();
-        public string Name { get; }
+        
+        [Key(2)]
+        public string Name { get; private set; }
 
+        private PathName() {}
         public PathName(string name)
         {
             name = name == null || name.Equals("/") ? "" : name.Trim();
@@ -53,6 +59,7 @@ namespace CloudAtlas.Model
 
         public PathName LevelDown(string son) => new PathName($"{Name}/{son}");
 
+        [IgnoreMember]
         public string SingletonName
         {
             get

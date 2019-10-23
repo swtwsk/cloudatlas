@@ -2,13 +2,18 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ZMI : ICloneable
     {
+        [Key(1)]
         public AttributesMap Attributes { get; } = new AttributesMap();
+        [Key(2)]
         public List<ZMI> Sons { get; } = new List<ZMI>();
+        [Key(3)]
         public ZMI Father { get; set; }
         
         public ZMI() : this(null) {}

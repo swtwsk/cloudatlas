@@ -1,12 +1,13 @@
-using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ValueList : ValueSimple<IList<Value>>, IList<Value>
     {
         private AttributeTypeCollection _type;
@@ -24,7 +25,7 @@ namespace CloudAtlas.Model
             _type = new AttributeTypeCollection(PrimaryType.List, elementType);
         }
 
-        public override AttributeType AttributeType => _type;
+        [IgnoreMember] public override AttributeType AttributeType => _type;
         public override Value ConvertTo(AttributeType to)
         {
             switch (to.PrimaryType)
@@ -100,8 +101,8 @@ namespace CloudAtlas.Model
 
         public bool Remove(Value item) => List.Remove(item);
 
-        public int Count => List.Count;
-        public bool IsReadOnly => List.IsReadOnly;
+        [IgnoreMember] public int Count => List.Count;
+        [IgnoreMember] public bool IsReadOnly => List.IsReadOnly;
         public int IndexOf(Value item) => List.IndexOf(item);
 
         public void Insert(int index, Value item)
@@ -112,6 +113,7 @@ namespace CloudAtlas.Model
         
         public void RemoveAt(int index) => List.RemoveAt(index);
 
+        [IgnoreMember]
         public Value this[int index]
         {
             get => List[index];

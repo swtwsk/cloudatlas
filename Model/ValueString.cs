@@ -1,16 +1,18 @@
 using System;
 using System.Text.RegularExpressions;
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ValueString : ValueSimple<string>
     {
         public static ValueString NullString = new ValueString("NULL");
         
         public ValueString(string value) : base(value) {}
 
-        public override AttributeType AttributeType => AttributeTypePrimitive.String;
+        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.String;
         public override Value ConvertTo(AttributeType to)
         {
             switch (to.PrimaryType)

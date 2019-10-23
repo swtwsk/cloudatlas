@@ -1,7 +1,9 @@
 using System;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject()]
     public class AttributeTypePrimitive : AttributeType
     {
         public static AttributeTypePrimitive Boolean = new AttributeTypePrimitive(PrimaryType.Boolean);

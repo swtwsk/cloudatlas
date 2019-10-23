@@ -1,13 +1,15 @@
 using System;
 using CloudAtlas.Model.Exceptions;
+using MessagePack;
 
 namespace CloudAtlas.Model
 {
+    [MessagePackObject]
     public class ValueDouble : ValueSimple<RefStruct<double>>
     {
         public ValueDouble(RefStruct<double> value) : base(value) {}
 
-        public override AttributeType AttributeType => AttributeTypePrimitive.Double;
+        [IgnoreMember] public override AttributeType AttributeType => AttributeTypePrimitive.Double;
         public override Value ConvertTo(AttributeType to)
         {
             return to.PrimaryType switch
