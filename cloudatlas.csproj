@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Antlr4.Runtime.Standard" Version="4.7.2" />
     <PackageReference Include="Ceras" Version="4.1.7" />
   </ItemGroup>
 
