@@ -118,13 +118,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_program; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterProgram(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitProgram(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitProgram(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -162,13 +159,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_statement_list; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterStatement_list(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitStatement_list(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitStatement_list(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -244,13 +238,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_statement; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterStatement(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitStatement(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitStatement(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -304,13 +295,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_where_clause; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterWhere_clause(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitWhere_clause(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitWhere_clause(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -347,13 +335,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_order_by_clause; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterOrder_by_clause(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitOrder_by_clause(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrder_by_clause(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -393,13 +378,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_order_list; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterOrder_list(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitOrder_list(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrder_list(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -474,13 +456,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_order_item; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterOrder_item(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitOrder_item(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrder_item(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -531,13 +510,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_order; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterOrder(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitOrder(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitOrder(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -580,13 +556,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_nulls; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterNulls(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitNulls(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNulls(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -638,13 +611,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_sel_list; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterSel_list(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitSel_list(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitSel_list(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -720,13 +690,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_sel_item; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterSel_item(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitSel_item(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitSel_item(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -792,13 +759,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_sel_modifier; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterSel_modifier(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitSel_modifier(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitSel_modifier(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -841,13 +805,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_sel_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterSel_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitSel_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitSel_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -888,13 +849,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_cond_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterCond_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitCond_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitCond_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -994,13 +952,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_cond_expr_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterCond_expr_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitCond_expr_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitCond_expr_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1097,13 +1052,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_and_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterAnd_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitAnd_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAnd_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1176,13 +1128,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_and_expr_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterAnd_expr_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitAnd_expr_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitAnd_expr_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1255,13 +1204,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_not_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterNot_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitNot_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNot_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1324,13 +1270,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_not_expr_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterNot_expr_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitNot_expr_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNot_expr_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1399,13 +1342,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_bool_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterBool_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitBool_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBool_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1471,13 +1411,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_bool_expr_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterBool_expr_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitBool_expr_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBool_expr_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1538,13 +1475,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_basic_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterBasic_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitBasic_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBasic_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1635,13 +1569,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_fact_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterFact_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitFact_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitFact_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1740,13 +1671,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_neg_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterNeg_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitNeg_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitNeg_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1837,13 +1765,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_term_expr; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterTerm_expr(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitTerm_expr(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitTerm_expr(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -1970,13 +1895,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_identifier; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterIdentifier(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitIdentifier(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitIdentifier(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2008,13 +1930,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_string_const; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterString_const(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitString_const(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitString_const(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2047,13 +1966,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_bool_const; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterBool_const(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitBool_const(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitBool_const(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2094,13 +2010,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_int_const; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterInt_const(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitInt_const(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitInt_const(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2132,13 +2045,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_double_const; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterDouble_const(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitDouble_const(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitDouble_const(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2172,13 +2082,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_expr_list_opt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterExpr_list_opt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitExpr_list_opt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitExpr_list_opt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2241,13 +2148,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_expr_list; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterExpr_list(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitExpr_list(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitExpr_list(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2320,13 +2224,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_expr_list_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterExpr_list_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitExpr_list_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitExpr_list_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2396,13 +2297,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_rel_op; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterRel_op(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitRel_op(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitRel_op(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2456,13 +2354,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_rel_op_no_gt; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterRel_op_no_gt(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitRel_op_no_gt(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitRel_op_no_gt(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
@@ -2502,13 +2397,10 @@ public partial class QueryParser : Parser {
 		{
 		}
 		public override int RuleIndex { get { return RULE_error; } }
-		public override void EnterRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.EnterError(this);
-		}
-		public override void ExitRule(IParseTreeListener listener) {
-			IQueryListener typedListener = listener as IQueryListener;
-			if (typedListener != null) typedListener.ExitError(this);
+		public override TResult Accept<TResult>(IParseTreeVisitor<TResult> visitor) {
+			IQueryVisitor<TResult> typedVisitor = visitor as IQueryVisitor<TResult>;
+			if (typedVisitor != null) return typedVisitor.VisitError(this);
+			else return visitor.VisitChildren(this);
 		}
 	}
 
