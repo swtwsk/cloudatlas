@@ -44,7 +44,7 @@ namespace CloudAtlas.Model
             {
                 if (IsNull || value.IsNull)
                     return new ValueTime((RefStruct<long>) null);
-                return new ValueTime(Value - ((ValueTime) value).Value);
+                return new ValueDuration(Value - ((ValueTime) value).Value);
             }
 
             throw new IncompatibleTypesException(AttributeType, value.AttributeType, Operation.Add);

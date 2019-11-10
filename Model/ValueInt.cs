@@ -69,8 +69,8 @@ namespace CloudAtlas.Model
             if(((ValueInt) value).Value == 0L)
                 throw new ArithmeticException("Division by zero.");
             return IsNull
-                ? (Value) new ValueDouble(null)
-                : (Value) new ValueDouble((double) Value.Ref / ((ValueInt) value).Value);
+                ? new ValueDouble(null)
+                : new ValueDouble((double) Value.Ref / ((ValueInt) value).Value);
         }
 	
         public override Value Modulo(Value value) {
