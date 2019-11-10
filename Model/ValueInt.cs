@@ -16,7 +16,7 @@ namespace CloudAtlas.Model
             {
                 PrimaryType.Double => (Value) new ValueDouble(Value == null
                     ? null
-                    : Convert.ToDouble(Value).ToNullableWrapper()),
+                    : Convert.ToDouble(Value.Ref).ToNullableWrapper()),
                 PrimaryType.Duration => new ValueDuration(Value),
                 PrimaryType.Int => this,
                 PrimaryType.String => (Value == null ? ValueString.NullString : new ValueString(Value.ToString())),

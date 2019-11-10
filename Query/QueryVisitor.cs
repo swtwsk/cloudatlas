@@ -1,180 +1,395 @@
+using System;
+using System.Collections.Generic;
+using System.Globalization;
+using System.Linq;
+using Antlr4.Runtime.Tree;
+using CloudAtlas.Interpreter;
+using CloudAtlas.Interpreter.Exceptions;
+using CloudAtlas.Model;
+using Attribute = CloudAtlas.Model.Attribute;
+using Environment = CloudAtlas.Interpreter.Environment;
+
 namespace CloudAtlas.Query
 {
-    public class QueryVisitor : QueryBaseVisitor<object>
+    public class Interpreter
     {
-        public override object VisitProgram(QueryParser.ProgramContext context)
+        private static ZMI _zmi;
+
+        public Interpreter(ZMI zmi) => _zmi = zmi;
+
+        public IEnumerable<QueryResult> VisitProgram(QueryParser.ProgramContext context) =>
+            new QueryVisitor().Visit(context);
+
+        public class QueryVisitor : QueryBaseVisitor<IEnumerable<QueryResult>>
         {
-            return base.VisitProgram(context);
+            public override IEnumerable<QueryResult> VisitProgram(QueryParser.ProgramContext context) =>
+                context.statement().SelectMany(VisitStatement); // TODO: Handle errors
+
+            public override IEnumerable<QueryResult> VisitStatement(QueryParser.StatementContext context)
+            {
+                var table = new Table(_zmi);
+                if (context.where_clause() != null)
+                    table = new WhereVisitor(table).Visit(context.where_clause());
+                if (context.order_by_clause() != null)
+                    table = new OrderByVisitor(table).Visit(context.order_by_clause());
+
+                var ret = new List<QueryResult>();
+
+                foreach (var selItem in context.sel_item())
+                {
+                    var qr = new SelItemVisitor(table).Visit(selItem);
+                    if (qr.Name != null)
+                    {
+                        if (ret.Any(qrRet => qr.Name.Name.Equals(qrRet.Name.Name)))
+                        {
+                            throw new ArgumentException("Alias collision");
+                        }
+                    }
+                    ret.Add(qr);
+                }
+                
+                return ret;
+            }
         }
 
-        public override object VisitStatement_list(QueryParser.Statement_listContext context)
+        public class WhereVisitor : QueryBaseVisitor<Table>
         {
-            return base.VisitStatement_list(context);
+            private readonly Table _table;
+
+            public WhereVisitor(Table table) => _table = table;
+
+            public override Table VisitWhere_clause(QueryParser.Where_clauseContext context)
+            {
+                var result = new Table(_table);
+                foreach (var row in _table)
+                {
+                    var env = new Environment(row, _table.Columns);
+                    var value = new CondExprVisitor(env).Visit(context.cond_expr()).Value;
+                    if (InterpreterUtils.GetBoolean(value))
+                        result.AppendRow(row);
+                }
+
+                return result;
+            }
         }
 
-        public override object VisitStatement(QueryParser.StatementContext context)
+        public class OrderByVisitor : QueryBaseVisitor<Table>
         {
-            return base.VisitStatement(context);
+            private Table _table;
+
+            public OrderByVisitor(Table table) => _table = table;
+
+            public override Table VisitOrder_by_clause(QueryParser.Order_by_clauseContext context)
+            {
+                foreach (var item in context.order_item())
+                    _table = new OrderItemVisitor(_table).Visit(item);
+
+                return _table;
+            }
         }
 
-        public override object VisitWhere_clause(QueryParser.Where_clauseContext context)
+        public class OrderItemVisitor : QueryBaseVisitor<Table>
         {
-            return base.VisitWhere_clause(context);
+            private readonly Table _table;
+
+            public OrderItemVisitor(Table table) => _table = table;
+
+            public override Table VisitOrder_item(QueryParser.Order_itemContext context)
+            {
+                int Comparer(TableRow row1, TableRow row2)
+                {
+                    var env1 = new Environment(row1, _table.Columns);
+                    var expr1 = new CondExprVisitor(env1).Visit(context.cond_expr());
+                    var env2 = new Environment(row2, _table.Columns);
+                    var expr2 = new CondExprVisitor(env2).Visit(context.cond_expr());
+                    var pair = (left: expr1, right: expr2);
+                    var result = new NullsVisitor(pair).Visit(context.nulls());
+                    if (result == 0) result = new OrderVisitor(pair).Visit(context.order());
+                    return result;
+                }
+
+                _table.Sort(Compare.By<TableRow>(Comparer));
+                return _table;
+            }
         }
 
-        public override object VisitOrder_by_clause(QueryParser.Order_by_clauseContext context)
+        public class OrderVisitor : QueryBaseVisitor<int>
         {
-            return base.VisitOrder_by_clause(context);
+            private readonly (Result, Result) _pair;
+
+            public OrderVisitor((Result, Result) pair) => _pair = pair;
+
+            public override int VisitOrder(QueryParser.OrderContext context) =>
+                context?.DESC() == null ? CompareAsc(_pair) : -CompareAsc(_pair);
+
+            private static int CompareAsc((Result, Result) pair)
+            {
+                var (left, right) = pair;
+                return InterpreterUtils.GetBoolean(left.IsEqual(right).Value) ? 0 :
+                    InterpreterUtils.GetBoolean(left.IsLowerThan(right).Value) ? -1 : 1;
+            }
         }
 
-        public override object VisitOrder_list(QueryParser.Order_listContext context)
+        public class NullsVisitor : QueryBaseVisitor<int>
         {
-            return base.VisitOrder_list(context);
+            private readonly (Result, Result) _pair;
+
+            public NullsVisitor((Result, Result) pair) => _pair = pair;
+
+            public override int VisitNulls(QueryParser.NullsContext context) =>
+                context?.LAST() == null ? NullsFirst(_pair) : -NullsFirst(_pair);
+
+            private static int NullsFirst((Result, Result) pair)
+            {
+                var (left, right) = pair;
+                if (left.Value.IsNull)
+                    return right.Value.IsNull ? 0 : -1;
+                return right.Value.IsNull ? 1 : 0;
+            }
         }
 
-        public override object VisitOrder_item(QueryParser.Order_itemContext context)
+        public class SelItemVisitor : QueryBaseVisitor<QueryResult>
         {
-            return base.VisitOrder_item(context);
+            private readonly Table _table;
+            public SelItemVisitor(Table table) => _table = table;
+
+            public override QueryResult VisitSel_item(QueryParser.Sel_itemContext context)
+            {
+                var distinct = context.sel_modifier()?.ALL() == null;
+                var alias = context.identifier();
+
+                var result = new CondExprVisitor(null).Visit(context.cond_expr());
+                return alias == null
+                    ? new QueryResult(result.Value)
+                    : new QueryResult(new Attribute(alias.GetText()), result.Value);
+            }
         }
 
-        public override object VisitOrder(QueryParser.OrderContext context)
+        public class CondExprVisitor : QueryBaseVisitor<Result>
         {
-            return base.VisitOrder(context);
+            private readonly Environment _env;
+
+            public CondExprVisitor(Environment env) => _env = env;
+
+            public override Result VisitCond_expr(QueryParser.Cond_exprContext context) =>
+                context.and_expr().Select(Visit).Aggregate((a, b) => a.Or(b));
+
+            public override Result VisitAnd_expr(QueryParser.And_exprContext context) =>
+                context.not_expr().Select(Visit).Aggregate((a, b) => a.And(b));
+
+            public override Result VisitNot_expr(QueryParser.Not_exprContext context) => context.NOT() != null
+                ? Visit(context.not_expr()).Negate()
+                : Visit(context.bool_expr());
+
+            public override Result VisitBool_expr(QueryParser.Bool_exprContext context)
+            {
+                var boolExprInt = new BoolExprVisitor(_env);
+                return boolExprInt.Visit(context);
+            }
         }
 
-        public override object VisitNulls(QueryParser.NullsContext context)
+        public class BoolExprVisitor : QueryBaseVisitor<Result>
         {
-            return base.VisitNulls(context);
+            private readonly Environment _env;
+            public BoolExprVisitor(Environment env) => _env = env;
+
+            public override Result VisitBool_expr(QueryParser.Bool_exprContext context)
+            {
+                if (context.rel_op() != null)
+                    return VisitOp(context);
+                if (context.REGEXP() != null)
+                    return VisitRegExp(context);
+                return VisitBasic(context);
+            }
+
+            private Result VisitOp(QueryParser.Bool_exprContext context)
+            {
+                var left = new BasicExprVisitor(_env).Visit(context.basic_expr()[0]);
+                var right = new BasicExprVisitor(_env).Visit(context.basic_expr()[1]);
+                return new RelOpVisitor((left, right)).Visit(context.rel_op());
+            }
+
+            private Result VisitRegExp(QueryParser.Bool_exprContext context)
+            {
+                var left = new BasicExprVisitor(_env).Visit(context.basic_expr()[0]);
+                return (new ResultSingle(new ValueString(context.string_const().GetText()))).RegExpr(left);
+            }
+
+            private Result VisitBasic(QueryParser.Bool_exprContext context) =>
+                new BasicExprVisitor(_env).Visit(context.basic_expr()[0]);
         }
 
-        public override object VisitSel_list(QueryParser.Sel_listContext context)
+        public class BasicExprVisitor : QueryBaseVisitor<Result>
         {
-            return base.VisitSel_list(context);
+            private readonly Environment _env;
+            public BasicExprVisitor(Environment env) => _env = env;
+
+            public override Result VisitBasic_expr(QueryParser.Basic_exprContext context)
+            {
+                if (context.ADD() != null)
+                    return VisitAdd(context);
+                if (context.SUB() != null)
+                    return VisitSub(context);
+                return VisitFact_expr(context.fact_expr());
+            }
+
+            private (Result, Result) VisitTwo(QueryParser.Basic_exprContext context)
+            {
+                var left = new BasicExprVisitor(_env).Visit(context.basic_expr());
+                var right = new BasicExprVisitor(_env).Visit(context.fact_expr());
+                return (left, right);
+            }
+
+            private Result VisitAdd(QueryParser.Basic_exprContext context)
+            {
+                var (left, right) = VisitTwo(context);
+                return left.Add(right);
+            }
+
+            private Result VisitSub(QueryParser.Basic_exprContext context)
+            {
+                var (left, right) = VisitTwo(context);
+                return left.Subtract(right);
+            }
+
+            public override Result VisitFact_expr(QueryParser.Fact_exprContext context)
+            {
+                if (context.MUL() != null)
+                    return VisitMul(context);
+                if (context.DIV() != null)
+                    return VisitDiv(context);
+                if (context.MOD() != null)
+                    return VisitMod(context);
+                return VisitNeg_expr(context.neg_expr());
+            }
+
+            private (Result, Result) VisitTwo(QueryParser.Fact_exprContext context)
+            {
+                var left = new BasicExprVisitor(_env).Visit(context.fact_expr());
+                var right = new BasicExprVisitor(_env).Visit(context.neg_expr());
+                return (left, right);
+            }
+
+            private Result VisitMul(QueryParser.Fact_exprContext context)
+            {
+                var (left, right) = VisitTwo(context);
+                return left.Multiply(right);
+            }
+
+            private Result VisitDiv(QueryParser.Fact_exprContext context)
+            {
+                var (left, right) = VisitTwo(context);
+                return left.Divide(right);
+            }
+
+            private Result VisitMod(QueryParser.Fact_exprContext context)
+            {
+                var (left, right) = VisitTwo(context);
+                return left.Modulo(right);
+            }
+
+            public override Result VisitNeg_expr(QueryParser.Neg_exprContext context)
+            {
+                if (context.SUB() != null)
+                    return VisitNeg_expr(context.neg_expr()).Negate();
+                return new TermExprVisitor(_env).Visit(context.term_expr());
+            }
         }
 
-        public override object VisitSel_item(QueryParser.Sel_itemContext context)
+        public class TermExprVisitor : QueryBaseVisitor<Result>
         {
-            return base.VisitSel_item(context);
+            private readonly Environment _env;
+            public TermExprVisitor(Environment env) => _env = env;
+
+            public override Result VisitTerm_expr(QueryParser.Term_exprContext context)
+            {
+                if (context.string_const() != null)
+                    return new ResultSingle(new ValueString(context.string_const().GetText()));
+                if (context.bool_const() != null)
+                    return new ResultSingle(new ValueBoolean(context.bool_const().TRUE() != null));
+                if (context.int_const() != null)
+                    return new ResultSingle(new ValueInt(int.Parse(context.int_const().GetText())));
+                if (context.double_const() != null)
+                    return new ResultSingle(new ValueDouble(double.Parse(context.double_const().GetText(), CultureInfo.InvariantCulture)));
+                if (context.LBRACE() != null)
+                    //return new ResultSingle(new ValueSet());
+                    throw new NotImplementedException("term_expr: {}");
+                if (context.LBRACK() != null)
+                    throw new NotImplementedException("term_expr: []");
+                if (context.LT() != null)
+                    throw new NotImplementedException("term_expr: <...>");
+
+                if (context.cond_expr() != null)
+                    return new CondExprVisitor(_env).Visit(context.cond_expr());
+                if (context.statement() != null)
+                    return VisitStmt(context.statement());
+
+                var id = context.identifier().ID().GetText();
+                return context.LPAREN() == null ? _env[id] : VisitFunction(id, context);
+            }
+
+            private Result VisitFunction(string id, QueryParser.Term_exprContext context)
+            {
+                if (context.MUL() != null)
+                {
+                    throw new NotImplementedException("function with * as arg");
+                }
+
+                var arguments =
+                    context.expr_list()?.cond_expr().Select(c => new CondExprVisitor(_env).Visit(c)).ToList() ??
+                    new List<Result>();
+
+                return Functions.Instance.Evaluate(id, arguments);
+            }
+
+            private static ResultSingle VisitStmt(QueryParser.StatementContext context)
+            {
+                var results = new QueryVisitor().Visit(context).ToList();
+                if (results.Count != 1)
+                    throw new ArgumentException("Nested queries must SELECT exactly one item.");
+                return new ResultSingle(results.First().Value);
+            }
         }
 
-        public override object VisitSel_modifier(QueryParser.Sel_modifierContext context)
+        public class RelOpVisitor : QueryBaseVisitor<Result>
         {
-            return base.VisitSel_modifier(context);
+            private readonly (Result, Result) _pair;
+
+            public RelOpVisitor((Result, Result) pair) => _pair = pair;
+
+            public override Result VisitRel_op(QueryParser.Rel_opContext context)
+            {
+                var (left, right) = _pair;
+                if (context.GT() != null)
+                    return left.IsLowerThan(right).Negate().And(left.IsEqual(right).Negate());
+                return VisitRel_op_no_gt(context.rel_op_no_gt());
+            }
+
+            public override Result VisitRel_op_no_gt(QueryParser.Rel_op_no_gtContext context)
+            {
+                var (left, right) = _pair;
+                var token = ((ITerminalNode) context.GetChild(0)).Symbol.Type;
+                return token switch
+                {
+                    QueryParser.EQ => left.IsEqual(right),
+                    QueryParser.NEQ => left.IsEqual(right).Negate(),
+                    QueryParser.LT => left.IsLowerThan(right),
+                    QueryParser.LE => left.IsLowerThan(right).Or(left.IsEqual(right)),
+                    QueryParser.GE => left.IsLowerThan(right).Negate(),
+                    _ => throw new InternalInterpreterException("No such token in RelOp")
+                };
+            }
         }
 
-        public override object VisitSel_expr(QueryParser.Sel_exprContext context)
+        private static class InterpreterUtils
         {
-            return base.VisitSel_expr(context);
-        }
+            public static bool GetBoolean(Value value)
+            {
+                if (!value.AttributeType.IsCompatible(AttributeTypePrimitive.Boolean))
+                    throw new InvalidTypeException(AttributeTypePrimitive.Boolean, value.AttributeType);
 
-        public override object VisitCond_expr(QueryParser.Cond_exprContext context)
-        {
-            return base.VisitCond_expr(context);
-        }
-
-        public override object VisitCond_expr_no_gt(QueryParser.Cond_expr_no_gtContext context)
-        {
-            return base.VisitCond_expr_no_gt(context);
-        }
-
-        public override object VisitAnd_expr(QueryParser.And_exprContext context)
-        {
-            return base.VisitAnd_expr(context);
-        }
-
-        public override object VisitAnd_expr_no_gt(QueryParser.And_expr_no_gtContext context)
-        {
-            return base.VisitAnd_expr_no_gt(context);
-        }
-
-        public override object VisitNot_expr(QueryParser.Not_exprContext context)
-        {
-            return base.VisitNot_expr(context);
-        }
-
-        public override object VisitNot_expr_no_gt(QueryParser.Not_expr_no_gtContext context)
-        {
-            return base.VisitNot_expr_no_gt(context);
-        }
-
-        public override object VisitBool_expr(QueryParser.Bool_exprContext context)
-        {
-            return base.VisitBool_expr(context);
-        }
-
-        public override object VisitBool_expr_no_gt(QueryParser.Bool_expr_no_gtContext context)
-        {
-            return base.VisitBool_expr_no_gt(context);
-        }
-
-        public override object VisitBasic_expr(QueryParser.Basic_exprContext context)
-        {
-            return base.VisitBasic_expr(context);
-        }
-
-        public override object VisitFact_expr(QueryParser.Fact_exprContext context)
-        {
-            return base.VisitFact_expr(context);
-        }
-
-        public override object VisitNeg_expr(QueryParser.Neg_exprContext context)
-        {
-            return base.VisitNeg_expr(context);
-        }
-
-        public override object VisitTerm_expr(QueryParser.Term_exprContext context)
-        {
-            return base.VisitTerm_expr(context);
-        }
-
-        public override object VisitIdentifier(QueryParser.IdentifierContext context)
-        {
-            return base.VisitIdentifier(context);
-        }
-
-        public override object VisitString_const(QueryParser.String_constContext context)
-        {
-            return base.VisitString_const(context);
-        }
-
-        public override object VisitBool_const(QueryParser.Bool_constContext context)
-        {
-            return base.VisitBool_const(context);
-        }
-
-        public override object VisitInt_const(QueryParser.Int_constContext context)
-        {
-            return base.VisitInt_const(context);
-        }
-
-        public override object VisitDouble_const(QueryParser.Double_constContext context)
-        {
-            return base.VisitDouble_const(context);
-        }
-
-        public override object VisitExpr_list(QueryParser.Expr_listContext context)
-        {
-            return base.VisitExpr_list(context);
-        }
-
-        public override object VisitExpr_list_no_gt(QueryParser.Expr_list_no_gtContext context)
-        {
-            return base.VisitExpr_list_no_gt(context);
-        }
-
-        public override object VisitRel_op(QueryParser.Rel_opContext context)
-        {
-            return base.VisitRel_op(context);
-        }
-
-        public override object VisitRel_op_no_gt(QueryParser.Rel_op_no_gtContext context)
-        {
-            return base.VisitRel_op_no_gt(context);
-        }
-
-        public override object VisitError(QueryParser.ErrorContext context)
-        {
-            return base.VisitError(context);
+                return (value as ValueBoolean)?.Value?.Ref ?? false;
+            }
         }
     }
 }

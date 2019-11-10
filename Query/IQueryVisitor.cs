@@ -38,12 +38,6 @@ public interface IQueryVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitProgram([NotNull] QueryParser.ProgramContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="QueryParser.statement_list"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitStatement_list([NotNull] QueryParser.Statement_listContext context);
-	/// <summary>
 	/// Visit a parse tree produced by <see cref="QueryParser.statement"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -61,12 +55,6 @@ public interface IQueryVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitOrder_by_clause([NotNull] QueryParser.Order_by_clauseContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="QueryParser.order_list"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitOrder_list([NotNull] QueryParser.Order_listContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="QueryParser.order_item"/>.
 	/// </summary>
@@ -86,12 +74,6 @@ public interface IQueryVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitNulls([NotNull] QueryParser.NullsContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="QueryParser.sel_list"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitSel_list([NotNull] QueryParser.Sel_listContext context);
-	/// <summary>
 	/// Visit a parse tree produced by <see cref="QueryParser.sel_item"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>
@@ -103,12 +85,6 @@ public interface IQueryVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <param name="context">The parse tree.</param>
 	/// <return>The visitor result.</return>
 	Result VisitSel_modifier([NotNull] QueryParser.Sel_modifierContext context);
-	/// <summary>
-	/// Visit a parse tree produced by <see cref="QueryParser.sel_expr"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitSel_expr([NotNull] QueryParser.Sel_exprContext context);
 	/// <summary>
 	/// Visit a parse tree produced by <see cref="QueryParser.cond_expr"/>.
 	/// </summary>

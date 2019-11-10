@@ -14,7 +14,7 @@ namespace CloudAtlas.Model
             return to.PrimaryType switch
             {
                 PrimaryType.Double => this as Value,
-                PrimaryType.Int => new ValueInt(Value == null ? null : Convert.ToInt64(Value).ToNullableWrapper()),
+                PrimaryType.Int => new ValueInt(Value == null ? null : Convert.ToInt64(Value.Ref).ToNullableWrapper()),
                 PrimaryType.String => Value == null ? ValueString.NullString : new ValueString(Value.ToString()),
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };

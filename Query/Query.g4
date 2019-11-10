@@ -1,26 +1,16 @@
 grammar Query;
 
 program :
-  	statement_list
-	;
-
-statement_list :
-  	statement_list SEMI statement
-	| statement
+  	statement (SEMI statement)*
 	;
 
 statement :
-  	SELECT sel_list (where_clause)? (order_by_clause)?
+  	SELECT sel_item (COMMA sel_item)* (where_clause)? (order_by_clause)?
 	;
 
 where_clause : WHERE cond_expr ;
 
-order_by_clause : ORDER BY order_list ;
-
-order_list :
-  	order_list COMMA order_item
-	| order_item
-	;
+order_by_clause : ORDER BY order_item (COMMA order_item)* ;
 
 order_item :
   	cond_expr (order)? (nulls)?
@@ -30,42 +20,26 @@ order : ASC | DESC ;
 
 nulls : NULLS FIRST | NULLS LAST ;
 
-sel_list :
-  	sel_list COMMA sel_item
-	| sel_item
-	;
-
 sel_item :
-  	(sel_modifier)? sel_expr
-	| (sel_modifier)? sel_expr AS identifier
-	;
+  	(sel_modifier)? cond_expr (AS identifier)? ;
 
 sel_modifier : ALL | DISTINCT ;
 
-sel_expr :
-  	cond_expr
-	;
-
 cond_expr :
-  	cond_expr OR and_expr
-	| and_expr
+    and_expr (OR and_expr)*
 	| error
 	;
 
 cond_expr_no_gt :
-  	cond_expr_no_gt OR and_expr_no_gt
-	| and_expr_no_gt
+    and_expr_no_gt (OR and_expr_no_gt)*
 	| error
 	;
 
 and_expr :
-  	and_expr AND not_expr
-	| not_expr
-	;
+    not_expr (AND not_expr)* ;
 
 and_expr_no_gt :
-  	and_expr_no_gt AND not_expr_no_gt
-	| not_expr_no_gt
+  	not_expr_no_gt (AND not_expr_no_gt)*
 	;
 
 not_expr :
@@ -145,14 +119,10 @@ double_const :
     ;
 
 expr_list :
-	  cond_expr
-	| expr_list COMMA cond_expr
-	;
+    cond_expr (COMMA cond_expr)* ;
 
 expr_list_no_gt :
-	   cond_expr_no_gt
-	| expr_list_no_gt COMMA cond_expr_no_gt
-	;
+	cond_expr_no_gt (COMMA cond_expr_no_gt)* ;
 
 rel_op :
   	rel_op_no_gt
