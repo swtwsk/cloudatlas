@@ -212,12 +212,6 @@ public interface IQueryVisitor<Result> : IParseTreeVisitor<Result> {
 	/// <return>The visitor result.</return>
 	Result VisitDouble_const([NotNull] QueryParser.Double_constContext context);
 	/// <summary>
-	/// Visit a parse tree produced by <see cref="QueryParser.expr_list_opt"/>.
-	/// </summary>
-	/// <param name="context">The parse tree.</param>
-	/// <return>The visitor result.</return>
-	Result VisitExpr_list_opt([NotNull] QueryParser.Expr_list_optContext context);
-	/// <summary>
 	/// Visit a parse tree produced by <see cref="QueryParser.expr_list"/>.
 	/// </summary>
 	/// <param name="context">The parse tree.</param>

@@ -144,8 +144,6 @@ double_const :
       DOUBLE
     ;
 
-expr_list_opt : | expr_list ;
-
 expr_list :
 	  cond_expr
 	| expr_list COMMA cond_expr

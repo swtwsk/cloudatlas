@@ -152,11 +152,6 @@ namespace CloudAtlas.Query
             return base.VisitDouble_const(context);
         }
 
-        public override object VisitExpr_list_opt(QueryParser.Expr_list_optContext context)
-        {
-            return base.VisitExpr_list_opt(context);
-        }
-
         public override object VisitExpr_list(QueryParser.Expr_listContext context)
         {
             return base.VisitExpr_list(context);
