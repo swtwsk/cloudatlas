@@ -7,8 +7,8 @@ namespace CloudAtlas.Model
 {
     public class ZMI : ICloneable
     {
-        public AttributesMap Attributes { get; private set; } = new AttributesMap();
-        public List<ZMI> Sons { get; private set; } = new List<ZMI>();
+        public AttributesMap Attributes { get; } = new AttributesMap();
+        public List<ZMI> Sons { get; } = new List<ZMI>();
         public ZMI Father { get; set; }
         
         public ZMI() : this(null) {}

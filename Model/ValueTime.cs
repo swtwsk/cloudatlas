@@ -5,7 +5,7 @@ namespace CloudAtlas.Model
 {
     public class ValueTime : ValueSimple<RefStruct<long>>
     {
-        public const string TimeFormat = "yyyy/MM/dd HH:mm:ss.fff";
+        private const string TimeFormat = "yyyy/M/dd H:m:ss.fff";
         
         private ValueTime() {}
         public ValueTime(RefStruct<long> value) : base(value) {}
