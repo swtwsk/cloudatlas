@@ -65,7 +65,7 @@ namespace CloudAtlas.Query
                 {
                     var env = new Environment(row, _table.Columns);
                     var value = new CondExprVisitor(env).Visit(context.cond_expr()).Value;
-                    if (InterpreterUtils.GetBoolean(value))
+                    if (value.GetBoolean())
                         result.AppendRow(row);
                 }
 
@@ -125,8 +125,8 @@ namespace CloudAtlas.Query
             private static int CompareAsc((Result, Result) pair)
             {
                 var (left, right) = pair;
-                return InterpreterUtils.GetBoolean(left.IsEqual(right).Value) ? 0 :
-                    InterpreterUtils.GetBoolean(left.IsLowerThan(right).Value) ? -1 : 1;
+                return left.IsEqual(right).Value.GetBoolean() ? 0 :
+                    left.IsLowerThan(right).Value.GetBoolean() ? -1 : 1;
             }
         }
 
@@ -350,14 +350,11 @@ namespace CloudAtlas.Query
 
             private Result VisitFunction(string id, QueryParser.Term_exprContext context)
             {
+                List<Result> arguments;
                 if (context.MUL() != null)
-                {
-                    throw new NotImplementedException("function with * as arg");
-                }
-
-                var arguments =
-                    context.expr_list()?.cond_expr().Select(c => new CondExprVisitor(_env).Visit(c)).ToList() ??
-                    new List<Result>();
+                    arguments = _env.ToList();
+                else
+                    arguments = context.expr_list()?.cond_expr().Select(c => new CondExprVisitor(_env).Visit(c)).ToList() ?? new List<Result>();
 
                 return Functions.Instance.Evaluate(id, arguments);
             }
@@ -398,17 +395,6 @@ namespace CloudAtlas.Query
                     QueryParser.GE => left.IsLowerThan(right).Negate(),
                     _ => throw new InternalInterpreterException("No such token in RelOp")
                 };
-            }
-        }
-
-        private static class InterpreterUtils
-        {
-            public static bool GetBoolean(Value value)
-            {
-                if (!value.AttributeType.IsCompatible(AttributeTypePrimitive.Boolean))
-                    throw new InvalidTypeException(AttributeTypePrimitive.Boolean, value.AttributeType);
-
-                return (value as ValueBoolean)?.Value?.Ref ?? false;
             }
         }
     }

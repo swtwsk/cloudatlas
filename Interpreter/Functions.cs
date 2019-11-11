@@ -100,7 +100,6 @@ namespace CloudAtlas.Interpreter
                         throw new ArgumentException(
                             $"First argument must have type {AttributeTypePrimitive.Integer} and be >= 0.");
                     }
-
                     break;
                 case "last":
                     if (size == 2)
@@ -112,7 +111,6 @@ namespace CloudAtlas.Interpreter
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }
-
                     break;
                 case "random":
                     if (size == 2)
@@ -124,7 +122,6 @@ namespace CloudAtlas.Interpreter
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }
-
                     break;
                 case "to_boolean":
                     if (size == 1)
@@ -314,8 +311,50 @@ namespace CloudAtlas.Interpreter
             return nList.Aggregate((a, b) => IsGreaterThan(a, b) ? a : b);
         };
 
-        private static readonly Result.TransformOp Unfold = values => throw new NotImplementedException("unfold");
-        private static readonly Result.TransformOp Distinct = values => throw new NotImplementedException("unfold");
-        private static readonly Result.TransformOp Sort = values => throw new NotImplementedException("unfold");
+        private static readonly Result.TransformOp Unfold = values =>
+        {
+            var nList = Result.FilterNullList(values);
+            if (nList.Value == null || !nList.Any())
+                return new ValueList(values.AttributeType);
+
+            var unfolded = nList.SelectMany(v =>
+            {
+                return v.AttributeType.PrimaryType switch
+                {
+                    PrimaryType.List => ((ValueList) v).ToList(),
+                    PrimaryType.Set => ((ValueSet) v).ToList(),
+                    _ => throw new ArgumentException($"Unfolding should work on lists, {v.AttributeType} isn't such.")
+                };
+            });
+            return new ValueList(unfolded.ToList(), nList.AttributeType);
+        };
+
+        private static readonly Result.TransformOp Distinct = values =>
+        {
+            var nList = Result.FilterNullList(values);
+            if (nList.Value == null || !nList.Any())
+                return new ValueList(values.AttributeType);
+            return new ValueList(nList.Distinct().ToList(), nList.AttributeType);
+        };
+
+        private static readonly Result.TransformOp Sort = values =>
+        {
+            Func<Value, Value, int> comparer = (a, b) =>
+            {
+                if (a.IsNull)
+                    return b.IsNull ? 0 : -1;
+
+                if (b.IsNull)
+                    return 1;
+
+                return a.IsEqual(b).GetBoolean() ? 0 :
+                    a.IsLowerThan(b).GetBoolean() ? -1 : 1;
+            };
+
+            var toSort = values.Value.ToList();
+            toSort.Sort(Compare.By(comparer));
+            
+            return new ValueList(toSort, values.AttributeType);
+        };
     }
 }

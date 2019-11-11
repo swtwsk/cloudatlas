@@ -1,10 +1,11 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using CloudAtlas.Model;
 
 namespace CloudAtlas.Interpreter
 {
-    public class Environment
+    public class Environment : IEnumerable<Result>
     {
         private readonly TableRow _row;
         private readonly Dictionary<string, int> _columns;
@@ -28,5 +29,14 @@ namespace CloudAtlas.Interpreter
         }
 
         public Result this[string ident] => GetIdent(ident);
+
+        public IEnumerator<Result> GetEnumerator() => _columns
+            .Select(pair => pair.Value)
+            .Select(i => _row.TryGet(i, out var cell) ? cell : null)
+            .Where(value => value != null)
+            .Select(v => new ResultSingle(v))
+            .GetEnumerator();
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }

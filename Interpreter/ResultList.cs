@@ -1,65 +1,63 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using CloudAtlas.Model;
 
 namespace CloudAtlas.Interpreter
 {
     public class ResultList : Result
     {
-        public ResultList(ValueList list) => List = list;
-        
-        public override Result BinaryOperationTyped(BinaryOp op, ResultSingle right)
+        public ResultList(ValueList list)
         {
-            throw new System.NotImplementedException();
-        }
-
-        public override Result UnaryOperation(UnaryOp op)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        protected override Result CallMe(BinaryOp op, Result left)
-        {
-            throw new System.NotImplementedException();
+            List = list;
         }
 
         public override Value Value => List;
         public override ValueList List { get; }
-        public override ValueList Column => throw new System.NotImplementedException();
-        public override ResultSingle AggregationOperation(AggregationOp op)
+        public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
+        
+        public override Result BinaryOperationTyped(BinaryOp op, ResultSingle right)
         {
-            throw new System.NotImplementedException();
+            return new ResultColumn(
+                new ValueList(List.Select(v => op(v, right.Value)).ToList(), List.AttributeType));
         }
 
-        public override ResultSingle TransformOperation(TransformOp op)
+        public override Result UnaryOperation(UnaryOp op)
         {
-            throw new System.NotImplementedException();
+            return new ResultColumn(new ValueList(List.Select(v => op(v)).ToList(), List.AttributeType));
         }
 
-        public override Result FilterNulls()
+        protected override Result CallMe(BinaryOp op, Result left)
         {
-            throw new System.NotImplementedException();
+            return left switch
+            {
+                ResultSingle resultSingle => new ResultColumn(
+                    new ValueList(List.Select(v => op(resultSingle.Value, v)).ToList(), List.AttributeType)),
+                _ => throw new NotSupportedException(
+                    $"Cannot do BinaryOp on ResultList and something that's not a ResultSingle")
+            };
         }
 
-        public override Result First(int size)
-        {
-            throw new System.NotImplementedException();
-        }
+        public override ResultSingle AggregationOperation(AggregationOp op) => new ResultSingle(op(List));
+        public override Result TransformOperation(TransformOp op) => new ResultList(op(List));
 
-        public override Result Last(int size)
-        {
-            throw new System.NotImplementedException();
-        }
-
-        public override Result Random(int size)
-        {
-            throw new System.NotImplementedException();
-        }
+        public override Result FilterNulls() => new ResultList(FilterNullList(List));
+        public override Result First(int size) => new ResultList(FirstList(List, size));
+        public override Result Last(int size) => new ResultList(LastList(List, size));
+        public override Result Random(int size) => new ResultList(RandomList(List, size));
 
         public override Result ConvertTo(AttributeType to)
         {
-            throw new System.NotImplementedException();
+            var converted = Column.ConvertTo(to);
+            if (converted.AttributeType.IsCollection())
+                converted = converted.ConvertTo(new AttributeTypeCollection(PrimaryType.List,
+                    ((AttributeTypeCollection) converted.AttributeType).ElementType));
+            else
+                converted = new ValueList(new List<Value> {converted}, converted.AttributeType);
+            return new ResultList((ValueList) converted);
         }
 
-        public override ResultSingle IsNull => throw new System.NotImplementedException();
-        public override AttributeType Type => throw new System.NotImplementedException();
+        public override ResultSingle IsNull => new ResultSingle(new ValueBoolean(List.IsNull));
+        public override AttributeType Type => List.AttributeType;
     }
 }

@@ -21,10 +21,10 @@ namespace CloudAtlas.Interpreter
         public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
 
         public override ResultSingle AggregationOperation(AggregationOp op) =>
-            new ResultSingle(op(new ValueList(new List<Value> {Value}, Value.AttributeType)));
+            throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
 
-        public override ResultSingle TransformOperation(TransformOp op) =>
-            new ResultSingle(op(new ValueList(new List<Value> {Value}, Value.AttributeType)));
+        public override Result TransformOperation(TransformOp op) =>
+            throw new NotSupportedException("Transform Operations not supported on ResultSingle.");
 
         public override Result FilterNulls() =>
             throw new NotSupportedException("Operation filterNulls not supported on ResultSingle.");

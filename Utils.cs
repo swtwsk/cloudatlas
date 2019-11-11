@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using CloudAtlas.Interpreter.Exceptions;
+using CloudAtlas.Model;
 
 namespace CloudAtlas
 {
@@ -18,6 +20,17 @@ namespace CloudAtlas
                 list[k] = list[n];
                 list[n] = value;
             }
+        }
+    }
+
+    public static class ValueUtils
+    {
+        public static bool GetBoolean(this Value value)
+        {
+            if (!value.AttributeType.IsCompatible(AttributeTypePrimitive.Boolean))
+                throw new InvalidTypeException(AttributeTypePrimitive.Boolean, value.AttributeType);
+
+            return (value as ValueBoolean)?.Value?.Ref ?? false;
         }
     }
 

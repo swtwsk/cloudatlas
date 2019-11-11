@@ -39,7 +39,7 @@ namespace CloudAtlas.Interpreter
 
         public abstract ResultSingle AggregationOperation(AggregationOp op);
 
-        public abstract ResultSingle TransformOperation(TransformOp op);
+        public abstract Result TransformOperation(TransformOp op);
 
         public Result IsEqual(Result right) => right.CallMe(IS_EQUAL, this);
         public Result IsLowerThan(Result right) => right.CallMe(IS_LOWER_THAN, this);

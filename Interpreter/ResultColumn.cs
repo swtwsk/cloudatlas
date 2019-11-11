@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using CloudAtlas.Model;
 
@@ -15,7 +16,7 @@ namespace CloudAtlas.Interpreter
 
         public override ResultSingle AggregationOperation(AggregationOp op) => new ResultSingle(op(Column));
 
-        public override ResultSingle TransformOperation(TransformOp op) => new ResultSingle(op(Column));
+        public override Result TransformOperation(TransformOp op) => new ResultList(op(Column));
 
         public override Result BinaryOperationTyped(BinaryOp op, ResultSingle right)
         {
@@ -37,8 +38,7 @@ namespace CloudAtlas.Interpreter
                     Column.AttributeType)),
                 ResultSingle resultSingle => new ResultColumn(
                     new ValueList(Column.Select(v => op(resultSingle.Value, v)).ToList(), Column.AttributeType)),
-                ResultList resultList => throw new System.NotImplementedException(),
-                _ => throw new Exception()
+                _ => throw new NotSupportedException($"Cannot do BinaryOp on ResultColumn and {left}")
             };
         }
 
@@ -55,7 +55,13 @@ namespace CloudAtlas.Interpreter
 
         public override Result ConvertTo(AttributeType to)
         {
-            throw new System.NotImplementedException();
+            var converted = Column.ConvertTo(to);
+            if (converted.AttributeType.IsCollection())
+                converted = converted.ConvertTo(new AttributeTypeCollection(PrimaryType.List,
+                    ((AttributeTypeCollection) converted.AttributeType).ElementType));
+            else
+                converted = new ValueList(new List<Value> {converted}, converted.AttributeType);
+            return new ResultColumn((ValueList) converted);
         }
 
         public override ResultSingle IsNull => new ResultSingle(new ValueBoolean(Column.IsNull));
