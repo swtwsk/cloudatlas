@@ -10,7 +10,7 @@ namespace CloudAtlas.Model
 {
     public class ValueList : ValueSimple<IList<Value>>, IList<Value>
     {
-        [Include] private AttributeTypeCollection _type;
+        [Include] private readonly AttributeTypeCollection _type;
 
         [Exclude] private IList<Value> List => base.GetValue();
 
@@ -22,7 +22,7 @@ namespace CloudAtlas.Model
                 Value = value;
         }
 
-        public ValueList(AttributeType elementType) : base(new List<Value>())
+        public ValueList(AttributeType elementType) : base(new List<Value>())  // TODO: ASK 'BOUT THIS
         {
             _type = new AttributeTypeCollection(PrimaryType.List, elementType);
         }
@@ -100,7 +100,7 @@ namespace CloudAtlas.Model
                 throw new System.ArgumentException("If you want to use null, create an object containing null instead.");
             if (!_type.ElementType.IsCompatible(element.AttributeType))
                 throw new System.ArgumentException($"This set contains elements of type {_type.ElementType} only. " +
-                                            $"Not compatibile with elements of type: {element.AttributeType}");
+                                            $"Not compatible with elements of type: {element.AttributeType}");
         }
         
         public IEnumerator<Value> GetEnumerator() => List.GetEnumerator();

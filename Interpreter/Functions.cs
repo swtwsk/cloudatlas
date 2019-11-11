@@ -206,7 +206,7 @@ namespace CloudAtlas.Interpreter
         private static readonly Result.AggregationOp Count = values =>
         {
             var nList = Result.FilterNullList(values);
-            return new ValueInt(nList.Value?.Count);
+            return nList.Value == null ? new ValueInt(null) : new ValueInt(nList.Value.Count);
         };
 
         private static readonly Result.AggregationOp Sum = values =>
@@ -314,8 +314,9 @@ namespace CloudAtlas.Interpreter
         private static readonly Result.TransformOp Unfold = values =>
         {
             var nList = Result.FilterNullList(values);
+            var elementType = ((AttributeTypeCollection) nList.AttributeType).ElementType;
             if (nList.Value == null || !nList.Any())
-                return new ValueList(values.AttributeType);
+                return new ValueList(elementType);
 
             var unfolded = nList.SelectMany(v =>
             {
@@ -326,15 +327,16 @@ namespace CloudAtlas.Interpreter
                     _ => throw new ArgumentException($"Unfolding should work on lists, {v.AttributeType} isn't such.")
                 };
             });
-            return new ValueList(unfolded.ToList(), nList.AttributeType);
+            return new ValueList(unfolded.ToList(), elementType);
         };
 
         private static readonly Result.TransformOp Distinct = values =>
         {
             var nList = Result.FilterNullList(values);
+            var elementType = ((AttributeTypeCollection) nList.AttributeType).ElementType;
             if (nList.Value == null || !nList.Any())
-                return new ValueList(values.AttributeType);
-            return new ValueList(nList.Distinct().ToList(), nList.AttributeType);
+                return new ValueList(elementType);
+            return new ValueList(nList.Distinct().ToList(), elementType);
         };
 
         private static readonly Result.TransformOp Sort = values =>
@@ -354,7 +356,7 @@ namespace CloudAtlas.Interpreter
             var toSort = values.Value.ToList();
             toSort.Sort(Compare.By(comparer));
             
-            return new ValueList(toSort, values.AttributeType);
+            return new ValueList(toSort, ((AttributeTypeCollection) values.AttributeType).ElementType);
         };
     }
 }

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using Antlr4.Runtime;
 using CloudAtlas.Model;
-using CloudAtlas.Query;
 
 namespace CloudAtlas
 {
@@ -37,7 +36,7 @@ namespace CloudAtlas
 			
 			var lexer = new QueryLexer(new AntlrInputStream(query));
 			var parser = new QueryParser(new CommonTokenStream(lexer));
-			var result = new Query.Interpreter(zmi).VisitProgram(parser.program());
+			var result = new Interpreter.Query.Interpreter(zmi).VisitProgram(parser.program());
 			var zone = GetPathName(zmi);
 			
 			foreach (var r in result) {

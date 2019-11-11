@@ -1,5 +1,4 @@
 using System;
-using System.Collections.Generic;
 using CloudAtlas.Model;
 
 namespace CloudAtlas.Interpreter
@@ -20,8 +19,10 @@ namespace CloudAtlas.Interpreter
         public override ValueList List => throw new NotSupportedException("Not a ResultList");
         public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
 
-        public override ResultSingle AggregationOperation(AggregationOp op) =>
-            throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
+        // TODO: Check it
+        public override ResultSingle AggregationOperation(AggregationOp op) => Value.IsNull
+            ? new ResultSingle(ValueNull.Instance)
+            : throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
 
         public override Result TransformOperation(TransformOp op) =>
             throw new NotSupportedException("Transform Operations not supported on ResultSingle.");

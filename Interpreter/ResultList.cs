@@ -7,10 +7,8 @@ namespace CloudAtlas.Interpreter
 {
     public class ResultList : Result
     {
-        public ResultList(ValueList list)
-        {
-            List = list;
-        }
+        public ResultList(ValueList list) => List = list;
+        private AttributeType ElementType => ((AttributeTypeCollection) List.AttributeType).ElementType;
 
         public override Value Value => List;
         public override ValueList List { get; }
@@ -19,12 +17,12 @@ namespace CloudAtlas.Interpreter
         public override Result BinaryOperationTyped(BinaryOp op, ResultSingle right)
         {
             return new ResultColumn(
-                new ValueList(List.Select(v => op(v, right.Value)).ToList(), List.AttributeType));
+                new ValueList(List.Select(v => op(v, right.Value)).ToList(), ElementType));
         }
 
         public override Result UnaryOperation(UnaryOp op)
         {
-            return new ResultColumn(new ValueList(List.Select(v => op(v)).ToList(), List.AttributeType));
+            return new ResultColumn(new ValueList(List.Select(v => op(v)).ToList(), ElementType));
         }
 
         protected override Result CallMe(BinaryOp op, Result left)
@@ -32,7 +30,7 @@ namespace CloudAtlas.Interpreter
             return left switch
             {
                 ResultSingle resultSingle => new ResultColumn(
-                    new ValueList(List.Select(v => op(resultSingle.Value, v)).ToList(), List.AttributeType)),
+                    new ValueList(List.Select(v => op(resultSingle.Value, v)).ToList(), ElementType)),
                 _ => throw new NotSupportedException(
                     $"Cannot do BinaryOp on ResultList and something that's not a ResultSingle")
             };
@@ -49,11 +47,13 @@ namespace CloudAtlas.Interpreter
         public override Result ConvertTo(AttributeType to)
         {
             var converted = Column.ConvertTo(to);
+            
             if (converted.AttributeType.IsCollection())
                 converted = converted.ConvertTo(new AttributeTypeCollection(PrimaryType.List,
                     ((AttributeTypeCollection) converted.AttributeType).ElementType));
             else
                 converted = new ValueList(new List<Value> {converted}, converted.AttributeType);
+            
             return new ResultList((ValueList) converted);
         }
 

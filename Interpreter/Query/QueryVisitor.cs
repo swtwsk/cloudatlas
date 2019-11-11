@@ -3,13 +3,11 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Antlr4.Runtime.Tree;
-using CloudAtlas.Interpreter;
 using CloudAtlas.Interpreter.Exceptions;
 using CloudAtlas.Model;
 using Attribute = CloudAtlas.Model.Attribute;
-using Environment = CloudAtlas.Interpreter.Environment;
 
-namespace CloudAtlas.Query
+namespace CloudAtlas.Interpreter.Query
 {
     public class Interpreter
     {
@@ -17,8 +15,10 @@ namespace CloudAtlas.Query
 
         public Interpreter(ZMI zmi) => _zmi = zmi;
 
+        // TODO: Check the Where case
         public IEnumerable<QueryResult> VisitProgram(QueryParser.ProgramContext context) =>
-            new QueryVisitor().Visit(context);
+            new QueryVisitor().Visit(context)
+                .Where(result => result != null && !result.Value.IsNull);
 
         public class QueryVisitor : QueryBaseVisitor<IEnumerable<QueryResult>>
         {
