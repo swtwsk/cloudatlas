@@ -170,9 +170,9 @@ namespace CloudAtlas.Query
                     }
                 }
 
-                var (attributes, values) = dict
+                var (attributes, values) = _table.Columns.Select(c => (key: c, value: _table.GetColumn(c)))
                     .ToList()
-                    .Unzip(pair => pair.Key.Name, pair => new ValueList(pair.Value, pair.Value.First().AttributeType));
+                    .Unzip(pair => pair.key, pair => pair.value);
 
 //                if (distinct)
 //                    values = values.Distinct();
