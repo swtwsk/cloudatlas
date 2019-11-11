@@ -40,9 +40,9 @@ namespace CloudAtlas.Interpreter
         public override Result TransformOperation(TransformOp op) => new ResultList(op(List));
 
         public override Result FilterNulls() => new ResultList(FilterNullList(List));
-        public override Result First(int size) => new ResultList(FirstList(List, size));
-        public override Result Last(int size) => new ResultList(LastList(List, size));
-        public override Result Random(int size) => new ResultList(RandomList(List, size));
+        public override Result First(int size) => new ResultSingle(FirstList(List, size));
+        public override Result Last(int size) => new ResultSingle(LastList(List, size));
+        public override Result Random(int size) => new ResultSingle(RandomList(List, size));
 
         public override Result ConvertTo(AttributeType to)
         {

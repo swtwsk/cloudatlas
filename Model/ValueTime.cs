@@ -1,16 +1,20 @@
 using System;
+using System.Globalization;
 using CloudAtlas.Model.Exceptions;
 
 namespace CloudAtlas.Model
 {
     public class ValueTime : ValueSimple<RefStruct<long>>
     {
-        private const string TimeFormat = "yyyy/M/dd H:m:ss.fff";
+        private const string ReadTimeFormat = "yyyy/M/dd H:m:ss.fff";
+        private const string PrintTimeFormat = "yyyy/MM/dd HH:mm:ss.fff";
         
         private ValueTime() {}
         public ValueTime(RefStruct<long> value) : base(value) {}
         public ValueTime(long value) : base(value) {}
-        public ValueTime(string time) : this(DateTime.ParseExact(time, TimeFormat, null).GetTime()) {}
+        public ValueTime(string time) : this(DateTimeOffset.ParseExact(time, ReadTimeFormat, null, 
+            DateTimeStyles.AssumeUniversal).ToUnixTimeMilliseconds()) {}
+        public ValueTime(DateTimeOffset dateTimeOffset) : this(dateTimeOffset.ToUnixTimeMilliseconds()) {}
 
         public override AttributeType AttributeType => AttributeTypePrimitive.Time;
 
@@ -56,27 +60,12 @@ namespace CloudAtlas.Model
             {
                 PrimaryType.String => (Value) (Value == null
                     ? ValueString.NullString
-                    : new ValueString(Value.Ref.GetTime().ToString(TimeFormat))),
+                    : new ValueString(DateTimeOffset.FromUnixTimeMilliseconds(Value.Ref).ToString(PrintTimeFormat))),
                 PrimaryType.Time => this,
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };
         }
 
         public override Value GetDefaultValue() => new ValueTime(0L);
-    }
-    
-    public static class DateTimeUtils
-    {
-        public static long GetTime(this DateTime that)
-        {
-            var t = that.ToUniversalTime() - new DateTime(1970, 1, 1);
-            return (long) (t.TotalMilliseconds + 0.5);
-        }
-        
-        public static DateTime GetTime(this long that)
-        {
-            var start = new DateTime(1970, 1, 1);
-            return start.AddMilliseconds(that).ToUniversalTime();
-        }
     }
 }

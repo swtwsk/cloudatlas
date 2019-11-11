@@ -47,11 +47,11 @@ namespace CloudAtlas.Interpreter
         
         public override Result FilterNulls() => new ResultList(FilterNullList(Column));
 
-        public override Result First(int size) => new ResultList(FirstList(Column, size));
+        public override Result First(int size) => new ResultSingle(FirstList(Column, size));
 
-        public override Result Last(int size) => new ResultList(LastList(Column, size));
+        public override Result Last(int size) => new ResultSingle(LastList(Column, size));
 
-        public override Result Random(int size) => new ResultList(RandomList(Column, size));
+        public override Result Random(int size) => new ResultSingle(RandomList(Column, size));
 
         public override Result ConvertTo(AttributeType to)
         {

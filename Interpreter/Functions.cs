@@ -36,7 +36,7 @@ namespace CloudAtlas.Interpreter
                     break;
                 case "now":
                     if (size == 0)
-                        return new ResultSingle(new ValueTime(DateTime.Now.GetTime()));
+                        return new ResultSingle(new ValueTime(DateTimeOffset.Now));
                     break;
                 case "epoch":
                     if (size == 0)

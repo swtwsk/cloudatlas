@@ -103,8 +103,8 @@ namespace CloudAtlas.Interpreter.Query
                     var env2 = new Environment(row2, _table.Columns);
                     var expr2 = new CondExprVisitor(env2).Visit(context.cond_expr());
                     var pair = (left: expr1, right: expr2);
-                    var result = new NullsVisitor(pair).Visit(context.nulls());
-                    if (result == 0) result = new OrderVisitor(pair).Visit(context.order());
+                    var result = new NullsVisitor(pair).VisitNulls(context.nulls());
+                    if (result == 0) result = new OrderVisitor(pair).VisitOrder(context.order());
                     return result;
                 }
 

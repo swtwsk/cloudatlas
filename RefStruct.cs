@@ -26,7 +26,7 @@ namespace CloudAtlas
 
         public override int GetHashCode() => Ref.GetHashCode();
 
-        public override string ToString() => Ref.ToString();
+        public override string ToString() => Ref.ToString().ToLower();
     }
 
     public static class RefStructExtensions
