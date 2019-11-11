@@ -41,7 +41,7 @@ namespace CloudAtlas.Model
         {
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
-                return new ValueBoolean(null);
+                return new ValueDouble(null);
             return this + (value as ValueDouble);
         }
         
@@ -49,7 +49,7 @@ namespace CloudAtlas.Model
         {
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
-                return new ValueBoolean(null);
+                return new ValueDouble(null);
             return this - (value as ValueDouble);
         }
         
@@ -57,7 +57,7 @@ namespace CloudAtlas.Model
         {
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
-                return new ValueBoolean(null);
+                return new ValueDouble(null);
             return this * (value as ValueDouble);
         }
         
@@ -65,7 +65,7 @@ namespace CloudAtlas.Model
         {
             SameTypesOrThrow(value, Operation.Compare);
             if (IsNull || value.IsNull)
-                return new ValueBoolean(null);
+                return new ValueDouble(null);
             return this / (value as ValueDouble);
         }
 

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace CloudAtlas
 {
     public class RefStruct<T>
@@ -26,7 +28,10 @@ namespace CloudAtlas
 
         public override int GetHashCode() => Ref.GetHashCode();
 
-        public override string ToString() => Ref.ToString().ToLower();
+        public override string ToString()
+        {
+            return Ref is double d ? d.ToString("0.0###", CultureInfo.InvariantCulture) : Ref.ToString().ToLower();
+        }
     }
 
     public static class RefStructExtensions
