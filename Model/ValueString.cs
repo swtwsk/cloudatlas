@@ -31,7 +31,7 @@ namespace CloudAtlas.Model
                     {
                         return new ValueTime(Value);
                     }
-                    catch (FormatException e)  // TODO: ?
+                    catch (FormatException)  // TODO: ?
                     {
                         return new ValueTime((RefStruct<long>) null);
                     }

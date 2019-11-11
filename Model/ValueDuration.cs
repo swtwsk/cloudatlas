@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 using CloudAtlas.Model.Exceptions;
 
 namespace CloudAtlas.Model
@@ -48,6 +49,9 @@ namespace CloudAtlas.Model
             {
                 return value.Add(this);
             }
+            if (TryOpByConstant(value, value.GetType().GetMethod("Add"), out var toReturn))
+                return toReturn;
+            
             SameTypesOrThrow(value, Operation.Add);
             if(IsNull || value.IsNull)
                 return new ValueDuration((RefStruct<long>) null);
@@ -56,6 +60,9 @@ namespace CloudAtlas.Model
 
         public override Value Subtract(Value value)
         {
+            if (TryOpByConstant(value, value.GetType().GetMethod("Subtract"), out var toReturn))
+                return toReturn;
+            
             SameTypesOrThrow(value, Operation.Subtract);
             if(IsNull || value.IsNull)
                 return new ValueDuration((RefStruct<long>) null);
@@ -64,8 +71,9 @@ namespace CloudAtlas.Model
 
         public override Value Multiply(Value value)
         {
-            if(value.AttributeType.PrimaryType == PrimaryType.Int)
-                return value.Multiply(this);
+            if (TryOpByConstant(value, value.GetType().GetMethod("Multiply"), out var toReturn))
+                return toReturn;
+
             SameTypesOrThrow(value, Operation.Multiply);
             if(IsNull || value.IsNull)
                 return new ValueDuration((RefStruct<long>) null);
@@ -74,7 +82,9 @@ namespace CloudAtlas.Model
 
         public override Value Divide(Value value)
         {
-            // TODO: Check it
+            if (TryOpByConstant(value, value.GetType().GetMethod("Divide"), out var toReturn))
+                return toReturn;
+            
             SameTypesOrThrow(value, Operation.Divide);
             if(value.IsNull)
                 return new ValueDouble(null);
@@ -87,6 +97,9 @@ namespace CloudAtlas.Model
 
         public override Value Modulo(Value value)
         {
+            if (TryOpByConstant(value, value.GetType().GetMethod("Modulo"), out var toReturn))
+                return toReturn;
+            
             SameTypesOrThrow(value, Operation.Modulo);
             if(value.IsNull)
                 return new ValueDuration((RefStruct<long>) null);
@@ -101,6 +114,38 @@ namespace CloudAtlas.Model
         {
             // TODO: Negation of duration?
             return new ValueDuration(IsNull ? null : (-Value.Ref).ToNullableWrapper());
+        }
+        
+        private bool TryOpByConstant(Value value, MethodBase method, out Value outValue)
+        {
+            outValue = null;
+            
+            switch (value.AttributeType.PrimaryType)
+            {
+                case PrimaryType.Int when IsNull || value.IsNull:
+                case PrimaryType.Double when IsNull || value.IsNull:
+                    outValue = new ValueDuration((RefStruct<long>) null);
+                    return true;
+                case PrimaryType.Int:
+                {
+                    var beneath = new ValueInt(Value.Ref);
+                    var newVal = method.Invoke(beneath, new object[]{value});
+                    var innerRefVal = newVal.GetType().GetProperty("Value").GetValue(newVal);
+                    var innerVal = innerRefVal.GetType().GetProperty("Ref").GetValue(innerRefVal);
+                    outValue = new ValueDuration(Convert.ToInt64(innerVal));
+                    return true;
+                }
+                case PrimaryType.Double:
+                {
+                    var beneath = new ValueDouble(Value.Ref);
+                    var newVal = method.Invoke(beneath, new object[]{value});
+                    var innerVal = ((ValueDouble) newVal).Value.Ref;
+                    outValue = new ValueDuration(Convert.ToInt64(innerVal));
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         public override AttributeType AttributeType => AttributeTypePrimitive.Duration;

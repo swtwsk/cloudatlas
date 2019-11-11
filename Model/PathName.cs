@@ -64,9 +64,9 @@ namespace CloudAtlas.Model
             {
                 try
                 {
-                    return _components[_components.Count - 1];
+                    return _components[^1];
                 }
-                catch (IndexOutOfRangeException e)
+                catch (IndexOutOfRangeException)
                 {
                     throw new InvalidOperationException("SingletonName is not supported for the root zone");
                 }
