@@ -36,7 +36,7 @@ namespace CloudAtlas.Model
                 return new ValueBoolean(true);
             if (IsNull || value.IsNull)
                 return new ValueBoolean(false);
-            return new ValueBoolean(value.Equals(((ValueSimple<T>)value).Value));
+            return new ValueBoolean(Value.Equals(((ValueSimple<T>)value).Value));
         }
     }
 }

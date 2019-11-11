@@ -11,7 +11,15 @@ namespace CloudAtlas
 
         public static implicit operator RefStruct<T>(T? value) =>
             value.HasValue ? new RefStruct<T> {Ref = value.Value} : null;
-        
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || GetType() != obj.GetType())
+                return false;
+
+            return Ref.Equals(((RefStruct<T>) obj).Ref);
+        }
+
         public override string ToString() => Ref.ToString();
     }
 

@@ -37,9 +37,9 @@ namespace CloudAtlas.Interpreter
         public abstract ValueList List { get; }
         public abstract ValueList Column { get; }
 
-        public ResultSingle AggregationOperation(AggregationOp op) => throw new NotImplementedException();
+        public abstract ResultSingle AggregationOperation(AggregationOp op);
 
-        public ResultSingle TransformOperation(TransformOp op) => throw new NotImplementedException();
+        public abstract ResultSingle TransformOperation(TransformOp op);
 
         public Result IsEqual(Result right) => right.CallMe(IS_EQUAL, this);
         public Result IsLowerThan(Result right) => right.CallMe(IS_LOWER_THAN, this);

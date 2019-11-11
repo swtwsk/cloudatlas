@@ -155,10 +155,30 @@ namespace CloudAtlas.Query
 
             public override QueryResult VisitSel_item(QueryParser.Sel_itemContext context)
             {
-                var distinct = context.sel_modifier()?.ALL() == null;
+                var distinct = context.sel_modifier()?.DISTINCT() != null;
                 var alias = context.identifier();
 
-                var result = new CondExprVisitor(null).Visit(context.cond_expr());
+                var dict = new Dictionary<Attribute, List<Value>>();
+                foreach (var son in _zmi.Sons)
+                {
+                    foreach (var (k, v) in son.Attributes)
+                    {
+                        if (dict.TryGetValue(k, out var l))
+                            l.Add(v);
+                        else
+                            dict.Add(k, new List<Value>{v});
+                    }
+                }
+
+                var (attributes, values) = dict
+                    .ToList()
+                    .Unzip(pair => pair.Key.Name, pair => new ValueList(pair.Value, pair.Value.First().AttributeType));
+
+//                if (distinct)
+//                    values = values.Distinct();
+                
+                var env = new Environment(new TableRow(values), attributes, true);
+                var result = new CondExprVisitor(env).Visit(context.cond_expr());
                 return alias == null
                     ? new QueryResult(result.Value)
                     : new QueryResult(new Attribute(alias.GetText()), result.Value);

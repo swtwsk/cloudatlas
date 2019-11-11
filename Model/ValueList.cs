@@ -48,7 +48,7 @@ namespace CloudAtlas.Model
                     if (Value == null)
                         return ValueString.NullString;
                     var sb = new StringBuilder();
-                    sb.Append("{");
+                    sb.Append("[");
                     var notFirst = false;
                     foreach (var v in Value)
                     {
@@ -58,7 +58,7 @@ namespace CloudAtlas.Model
                             notFirst = true;
                         sb.Append(v);
                     }
-                    sb.Append("}");
+                    sb.Append("]");
                     return new ValueString(sb.ToString());
                 default:
                     throw new UnsupportedConversionException(AttributeType, to);

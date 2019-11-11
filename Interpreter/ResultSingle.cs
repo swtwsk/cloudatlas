@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using CloudAtlas.Model;
 
 namespace CloudAtlas.Interpreter
@@ -14,13 +15,16 @@ namespace CloudAtlas.Interpreter
 
         public override Result UnaryOperation(UnaryOp op) => new ResultSingle(op(Value));
 
-        protected override Result CallMe(BinaryOp op, Result left)
-        {
-            return left.BinaryOperationTyped(op, this);
-        }
+        protected override Result CallMe(BinaryOp op, Result left) => left.BinaryOperationTyped(op, this);
 
         public override ValueList List => throw new NotSupportedException("Not a ResultList");
         public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
+
+        public override ResultSingle AggregationOperation(AggregationOp op) =>
+            new ResultSingle(op(new ValueList(new List<Value> {Value}, Value.AttributeType)));
+
+        public override ResultSingle TransformOperation(TransformOp op) =>
+            new ResultSingle(op(new ValueList(new List<Value> {Value}, Value.AttributeType)));
 
         public override Result FilterNulls() =>
             throw new NotSupportedException("Operation filterNulls not supported on ResultSingle.");

@@ -11,7 +11,7 @@ namespace CloudAtlas.Interpreter
     {
         private readonly List<string> _columns;
         private readonly Dictionary<string, int> _headersMap;
-        private readonly List<TableRow> _rows = new List<TableRow>();
+        private List<TableRow> _rows = new List<TableRow>();
 
         public ImmutableList<string> Columns => _columns?.ToImmutableList();
 
@@ -50,7 +50,7 @@ namespace CloudAtlas.Interpreter
             return new ValueList(result, elementType);
         }
 
-        public void Sort(IComparer<TableRow> comparer) => _rows.Sort(comparer);
+        public void Sort(IComparer<TableRow> comparer) => _rows = _rows.OrderBy(r => r, comparer).ToList();
 
         public void AppendRow(TableRow row)
         {
