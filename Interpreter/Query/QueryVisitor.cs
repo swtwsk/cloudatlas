@@ -324,7 +324,7 @@ namespace CloudAtlas.Interpreter.Query
             public override Result VisitTerm_expr(QueryParser.Term_exprContext context)
             {
                 if (context.string_const() != null)
-                    return new ResultSingle(new ValueString(context.string_const().GetText()));
+                    return new ResultSingle(new ValueString(context.string_const().GetText().Trim('\"')));
                 if (context.bool_const() != null)
                     return new ResultSingle(new ValueBoolean(context.bool_const().TRUE() != null));
                 if (context.int_const() != null)

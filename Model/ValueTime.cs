@@ -60,7 +60,9 @@ namespace CloudAtlas.Model
             {
                 PrimaryType.String => (Value) (Value == null
                     ? ValueString.NullString
-                    : new ValueString(DateTimeOffset.FromUnixTimeMilliseconds(Value.Ref).ToString(PrintTimeFormat))),
+                    : new ValueString(DateTimeOffset
+                        .FromUnixTimeMilliseconds(Value.Ref)
+                        .ToString(PrintTimeFormat, CultureInfo.InvariantCulture))),
                 PrimaryType.Time => this,
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };
