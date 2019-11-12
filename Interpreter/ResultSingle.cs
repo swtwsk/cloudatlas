@@ -24,8 +24,9 @@ namespace CloudAtlas.Interpreter
             ? new ResultSingle(ValueNull.Instance)
             : throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
 
-        public override Result TransformOperation(TransformOp op) =>
-            throw new NotSupportedException("Transform Operations not supported on ResultSingle.");
+        public override Result TransformOperation(TransformOp op) =>Value.IsNull
+            ? new ResultSingle(ValueNull.Instance)
+            : throw new NotSupportedException("Transform Operations not supported on ResultSingle.");
 
         public override Result FilterNulls() =>
             throw new NotSupportedException("Operation filterNulls not supported on ResultSingle.");

@@ -232,7 +232,7 @@ namespace CloudAtlas.Interpreter.Query
             private Result VisitRegExp(QueryParser.Bool_exprContext context)
             {
                 var left = new BasicExprVisitor(_env).Visit(context.basic_expr()[0]);
-                return (new ResultSingle(new ValueString(context.string_const().GetText()))).RegExpr(left);
+                return left.RegExpr(new ResultSingle(new ValueString(context.string_const().GetText().Trim('\"'))));
             }
 
             private Result VisitBasic(QueryParser.Bool_exprContext context) =>

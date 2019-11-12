@@ -314,7 +314,8 @@ namespace CloudAtlas.Interpreter
         private static readonly Result.TransformOp Unfold = values =>
         {
             var nList = Result.FilterNullList(values);
-            var elementType = ((AttributeTypeCollection) nList.AttributeType).ElementType;
+            var elementType = ((AttributeTypeCollection) ((AttributeTypeCollection) nList.AttributeType).ElementType)
+                .ElementType;
             if (nList.Value == null || !nList.Any())
                 return new ValueList(elementType);
 
