@@ -46,15 +46,7 @@ namespace CloudAtlas.Interpreter
 
         public override Result ConvertTo(AttributeType to)
         {
-            var converted = Column.ConvertTo(to);
-            
-            if (converted.AttributeType.IsCollection())
-                converted = converted.ConvertTo(new AttributeTypeCollection(PrimaryType.List,
-                    ((AttributeTypeCollection) converted.AttributeType).ElementType));
-            else
-                converted = new ValueList(new List<Value> {converted}, converted.AttributeType);
-            
-            return new ResultList((ValueList) converted);
+            return new ResultList(new ValueList(List.Select(v => v.ConvertTo(to)).ToList(), to));
         }
 
         public override ResultSingle IsNull => new ResultSingle(new ValueBoolean(List.IsNull));
