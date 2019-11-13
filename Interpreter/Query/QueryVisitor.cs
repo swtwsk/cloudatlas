@@ -16,14 +16,16 @@ namespace CloudAtlas.Interpreter.Query
 
         public Interpreter(ZMI zmi) => _zmi = zmi;
 
-        // TODO: Check the Where case
         public List<QueryResult> VisitProgram(QueryParser.ProgramContext context)
         {
             var toReturn = new QueryVisitor().Visit(context).ToList();
-            if (toReturn.All(maybe => maybe.HasNothing))
-                return new List<QueryResult>();
-//                .Where(result => result != null && !result.Value.IsNull);
-            return toReturn.Select(maybe => maybe.Match(result => result, () => null)).ToList();
+            if (toReturn.Any(maybe => maybe.Match(v => v.Name == null, () => false)))
+                throw new ArgumentException("All items in top-level SELECT must be aliased");
+            return toReturn
+                .Select(maybe => maybe.Match(
+                    result => result, 
+                    () => null))
+                .ToList();
         }
 
         public class QueryVisitor : QueryBaseVisitor<IEnumerable<Maybe<QueryResult>>>
@@ -185,14 +187,18 @@ namespace CloudAtlas.Interpreter.Query
                     }
                 }
 
-                var (attributes, values) = _table.Columns.Select(c => (key: c, value: _table.GetColumn(c)))
+                var (attributes, values) = _table.Columns
+                    .Where(c => !Attribute.IsQuery(c))
+                    .Select(c => (key: c, value: _table.GetColumn(c)))
                     .ToList()
                     .Unzip(pair => pair.key, pair => pair.value);
 
-//                if (distinct)
-//                    values = values.Distinct();
-                
-                var env = new Environment(new TableRow(values), attributes, true);
+                var env = new Environment(
+                    new TableRow(values.Select(list =>
+                        list.IsNull || ((AttributeTypeCollection) list.AttributeType).ElementType ==
+                        AttributeTypePrimitive.Null
+                            ? ValueNull.Instance as Value
+                            : list)), attributes, true);
                 var result = new CondExprVisitor(env).Visit(context.cond_expr());
 
                 return result.Bind(res => alias == null
@@ -248,8 +254,8 @@ namespace CloudAtlas.Interpreter.Query
             {
                 var left = new BasicExprVisitor(_env).Visit(context.basic_expr()[0]);
                 var right = new BasicExprVisitor(_env).Visit(context.basic_expr()[1]);
-                return left.Bind(l => right.Bind(r => (l, r).Just()))
-                    .Bind(tuple => new RelOpVisitor((tuple.l, tuple.r)).Visit(context.rel_op()));
+                return left.Zip(right)
+                    .Bind(tuple => new RelOpVisitor((tuple.Item1, tuple.Item2)).Visit(context.rel_op()));
             }
 
             private Maybe<Result> VisitRegExp(QueryParser.Bool_exprContext context)
@@ -288,13 +294,13 @@ namespace CloudAtlas.Interpreter.Query
             private Maybe<Result> VisitAdd(QueryParser.Basic_exprContext context)
             {
                 var (left, right) = VisitTwo(context);
-                return left.Bind(l => right.Bind(r => (l, r).Just())).Bind(tuple => tuple.l.Add(tuple.r).Just());
+                return left.Zip(right).Bind(tuple => tuple.Item1.Add(tuple.Item2).Just());
             }
 
             private Maybe<Result> VisitSub(QueryParser.Basic_exprContext context)
             {
                 var (left, right) = VisitTwo(context);
-                return left.Bind(l => right.Bind(r => (l, r).Just())).Bind(tuple => tuple.l.Subtract(tuple.r).Just());
+                return left.Zip(right).Bind(tuple => tuple.Item1.Subtract(tuple.Item2).Just());
             }
 
             public override Maybe<Result> VisitFact_expr(QueryParser.Fact_exprContext context)
@@ -318,19 +324,19 @@ namespace CloudAtlas.Interpreter.Query
             private Maybe<Result> VisitMul(QueryParser.Fact_exprContext context)
             {
                 var (left, right) = VisitTwo(context);
-                return left.Bind(l => right.Bind(r => (l, r).Just())).Bind(tuple => tuple.l.Multiply(tuple.r).Just());
+                return left.Zip(right).Bind(tuple => tuple.Item1.Multiply(tuple.Item2).Just());
             }
 
             private Maybe<Result> VisitDiv(QueryParser.Fact_exprContext context)
             {
                 var (left, right) = VisitTwo(context);
-                return left.Bind(l => right.Bind(r => (l, r).Just())).Bind(tuple => tuple.l.Divide(tuple.r).Just());
+                return left.Zip(right).Bind(tuple => tuple.Item1.Divide(tuple.Item2).Just());
             }
 
             private Maybe<Result> VisitMod(QueryParser.Fact_exprContext context)
             {
                 var (left, right) = VisitTwo(context);
-                return left.Bind(l => right.Bind(r => (l, r).Just())).Bind(tuple => tuple.l.Modulo(tuple.r).Just());
+                return left.Zip(right).Bind(tuple => tuple.Item1.Modulo(tuple.Item2).Just());
             }
 
             public override Maybe<Result> VisitNeg_expr(QueryParser.Neg_exprContext context)
@@ -374,7 +380,11 @@ namespace CloudAtlas.Interpreter.Query
                     return VisitStmt(context.statement()).FMap(Result.Id);
 
                 var id = context.identifier().ID().GetText();
-                return context.LPAREN() == null ? _env[id].Just() : VisitFunction(id, context);
+                if (context.LPAREN() != null)
+                    return VisitFunction(id, context);
+                
+                var cell = _env.GetIdent(id, out var hasColumn);
+                return !hasColumn ? Maybe<Result>.Nothing : cell.Just();
             }
 
             private Maybe<Result> VisitFunction(string id, QueryParser.Term_exprContext context)
@@ -394,7 +404,7 @@ namespace CloudAtlas.Interpreter.Query
                     else
                         arguments = searchedFor.Val;
                 }
-
+                
                 return Functions.Instance.Evaluate(id, arguments);
             }
 

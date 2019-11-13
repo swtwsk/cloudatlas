@@ -13,7 +13,7 @@ namespace CloudAtlas.Interpreter
 
         public QueryResult(Value value) : this(null, value) {}
 
-        public override string ToString() => Name + ": " + Value;
+        public override string ToString() => $"{Name}: {Value}";
     }
 
 }

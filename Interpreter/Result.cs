@@ -61,12 +61,12 @@ namespace CloudAtlas.Interpreter
         {
             var elementType = ((AttributeTypeCollection) list.AttributeType).ElementType;
             if (!list.Any())
-                return new ValueList(elementType);
+                return list;
             var result = list.Where(v => !v.IsNull).ToList();
             return new ValueList(result.Any() ? result : null, elementType);
         }
 
-        public abstract Result FilterNulls();
+        public abstract Maybe<Result> FilterNulls();
 
         protected static ValueList FirstList(ValueList list, int size)
         {
@@ -76,7 +76,7 @@ namespace CloudAtlas.Interpreter
                 : new ValueList(nList.Take(size).ToList(), ((AttributeTypeCollection) list.AttributeType).ElementType);
         }
 
-        public abstract Result First(int size);
+        public abstract Maybe<Result> First(int size);
 
         protected static ValueList LastList(ValueList list, int size)
         {
@@ -87,7 +87,7 @@ namespace CloudAtlas.Interpreter
                     ((AttributeTypeCollection) list.AttributeType).ElementType);
         }
 
-        public abstract Result Last(int size);
+        public abstract Maybe<Result> Last(int size);
 
         protected static ValueList RandomList(ValueList list, int size)
         {
@@ -98,7 +98,7 @@ namespace CloudAtlas.Interpreter
             return new ValueList(nList.Value.Take(size).ToList(), ((AttributeTypeCollection) list.AttributeType).ElementType);
         }
 
-        public abstract Result Random(int size);
+        public abstract Maybe<Result> Random(int size);
 
         public abstract Result ConvertTo(AttributeType to);
 

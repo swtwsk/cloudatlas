@@ -46,13 +46,13 @@ namespace CloudAtlas.Interpreter
         public override Value Value => Column;
         public override ValueList List => throw new NotSupportedException("Not a ResultList");
         
-        public override Result FilterNulls() => new ResultList(FilterNullList(Column));
+        public override Maybe<Result> FilterNulls() => (new ResultList(FilterNullList(Column)) as Result).Just();
 
-        public override Result First(int size) => new ResultSingle(FirstList(Column, size));
+        public override Maybe<Result> First(int size) => (new ResultSingle(FirstList(Column, size)) as Result).Just();
 
-        public override Result Last(int size) => new ResultSingle(LastList(Column, size));
+        public override Maybe<Result> Last(int size) => (new ResultSingle(LastList(Column, size)) as Result).Just();
 
-        public override Result Random(int size) => new ResultSingle(RandomList(Column, size));
+        public override Maybe<Result> Random(int size) => (new ResultSingle(RandomList(Column, size)) as Result).Just();
 
         public override Result ConvertTo(AttributeType to)
         {

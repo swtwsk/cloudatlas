@@ -18,8 +18,7 @@ namespace CloudAtlas.Model
         
         public ValueList(IList<Value> value, AttributeType elementType) : this(elementType)
         {
-            if (value != null)
-                Value = value;
+            Value = value;
         }
 
         public ValueList(AttributeType elementType) : base(new List<Value>())  // TODO: ASK 'BOUT THIS

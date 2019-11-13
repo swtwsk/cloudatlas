@@ -17,9 +17,10 @@ namespace CloudAtlas.Interpreter
             _isColumn = isColumn;
         }
 
-        public Result GetIdent(string ident)
+        public Result GetIdent(string ident, out bool hasColumn)
         {
-            if (!_columns.TryGetValue(ident, out var column) || !_row.TryGet(column, out var cell))
+            hasColumn = _columns.TryGetValue(ident, out var column);
+            if (!hasColumn || !_row.TryGet(column, out var cell))
                 return new ResultSingle(ValueNull.Instance);
             
             if (_isColumn && cell is ValueList cellList)  // TODO: check it
@@ -27,8 +28,6 @@ namespace CloudAtlas.Interpreter
             
             return new ResultSingle(cell);
         }
-
-        public Result this[string ident] => GetIdent(ident);
 
         public IEnumerator<Result> GetEnumerator() => _columns
             .Select(pair => pair.Value)

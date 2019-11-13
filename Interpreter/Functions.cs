@@ -89,7 +89,7 @@ namespace CloudAtlas.Interpreter
                     break;
                 case "filterNulls":
                     if (size == 1)
-                        return arguments[0].FilterNulls().Just();
+                        return arguments[0].FilterNulls();
                     break;
                 case "first":
                     if (size == 2)
@@ -97,7 +97,7 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].First((int) ((ValueInt) s).Value.Ref).Just();
+                            return arguments[1].First((int) ((ValueInt) s).Value.Ref);
                         throw new ArgumentException(
                             $"First argument must have type {AttributeTypePrimitive.Integer} and be >= 0.");
                     }
@@ -108,7 +108,7 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].Last((int) ((ValueInt) s).Value.Ref).Just();
+                            return arguments[1].Last((int) ((ValueInt) s).Value.Ref);
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }
@@ -119,7 +119,7 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].Random((int) ((ValueInt) s).Value.Ref).Just();
+                            return arguments[1].Random((int) ((ValueInt) s).Value.Ref);
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }

@@ -40,10 +40,10 @@ namespace CloudAtlas.Interpreter
         public override Maybe<ResultSingle> AggregationOperation(AggregationOp op) => new ResultSingle(op(List)).Just();
         public override Maybe<Result> TransformOperation(TransformOp op) => Maybe<Result>.Just(new ResultList(op(List)));
 
-        public override Result FilterNulls() => new ResultList(FilterNullList(List));
-        public override Result First(int size) => new ResultSingle(FirstList(List, size));
-        public override Result Last(int size) => new ResultSingle(LastList(List, size));
-        public override Result Random(int size) => new ResultSingle(RandomList(List, size));
+        public override Maybe<Result> FilterNulls() => (new ResultList(FilterNullList(List)) as Result).Just();
+        public override Maybe<Result> First(int size) => (new ResultSingle(FirstList(List, size)) as Result).Just();
+        public override Maybe<Result> Last(int size) => (new ResultSingle(LastList(List, size)) as Result).Just();
+        public override Maybe<Result> Random(int size) => (new ResultSingle(RandomList(List, size)) as Result).Just();
 
         public override Result ConvertTo(AttributeType to)
         {

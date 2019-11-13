@@ -20,27 +20,34 @@ namespace CloudAtlas.Interpreter
         public override ValueList List => throw new NotSupportedException("Not a ResultList");
         public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
 
-        // TODO: Check it
         public override Maybe<ResultSingle> AggregationOperation(AggregationOp op) =>
             Value.IsNull
-                ? Maybe<ResultSingle>.Nothing
+                ? new ResultSingle(ValueNull.Instance).Just()
                 : throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
 
         public override Maybe<Result> TransformOperation(TransformOp op) => Value.IsNull
-            ? Maybe<Result>.Nothing
+            ? (new ResultSingle(ValueNull.Instance) as Result).Just()
             : throw new NotSupportedException("Transform Operations not supported on ResultSingle.");
 
-        public override Result FilterNulls() =>
-            throw new NotSupportedException("Operation filterNulls not supported on ResultSingle.");
+        public override Maybe<Result> FilterNulls() =>
+            Value.IsNull
+                ? Maybe<Result>.Nothing
+                : throw new NotSupportedException("Operation filterNulls not supported on ResultSingle.");
 
-        public override Result First(int size) =>
-            throw new NotSupportedException("Operation first not supported on ResultSingle.");
+        public override Maybe<Result> First(int size) =>
+            Value.IsNull
+                ? Maybe<Result>.Nothing
+                : throw new NotSupportedException("Operation first not supported on ResultSingle.");
 
-        public override Result Last(int size) =>
-            throw new NotSupportedException("Operation last not supported on ResultSingle.");
+        public override Maybe<Result> Last(int size) =>
+            Value.IsNull
+                ? Maybe<Result>.Nothing
+                : throw new NotSupportedException("Operation last not supported on ResultSingle.");
 
-        public override Result Random(int size) =>
-            throw new NotSupportedException("Operation random not supported on ResultSingle.");
+        public override Maybe<Result> Random(int size) =>
+            Value.IsNull
+                ? Maybe<Result>.Nothing
+                : throw new NotSupportedException("Operation random not supported on ResultSingle.");
 
         public override Result ConvertTo(AttributeType to) => new ResultSingle(Value.ConvertTo(to));
 
