@@ -40,6 +40,9 @@ namespace CloudAtlas
 			var zone = GetPathName(zmi);
 			
 			foreach (var r in result) {
+				if (r == null)
+					continue;
+				
 				Console.WriteLine(zone + ": " + r);
 				zmi.Attributes.AddOrChange(r.Name, r.Value);
 			}

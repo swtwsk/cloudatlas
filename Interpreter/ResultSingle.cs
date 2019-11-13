@@ -1,5 +1,6 @@
 using System;
 using CloudAtlas.Model;
+using CloudAtlas.Monads;
 
 namespace CloudAtlas.Interpreter
 {
@@ -20,12 +21,13 @@ namespace CloudAtlas.Interpreter
         public override ValueList Column => throw new NotSupportedException("Not a ResultColumn");
 
         // TODO: Check it
-        public override ResultSingle AggregationOperation(AggregationOp op) => Value.IsNull
-            ? new ResultSingle(ValueNull.Instance)
-            : throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
+        public override Maybe<ResultSingle> AggregationOperation(AggregationOp op) =>
+            Value.IsNull
+                ? Maybe<ResultSingle>.Nothing
+                : throw new NotSupportedException("Aggregation Operations not supported on ResultSingle.");
 
-        public override Result TransformOperation(TransformOp op) =>Value.IsNull
-            ? new ResultSingle(ValueNull.Instance)
+        public override Maybe<Result> TransformOperation(TransformOp op) => Value.IsNull
+            ? Maybe<Result>.Nothing
             : throw new NotSupportedException("Transform Operations not supported on ResultSingle.");
 
         public override Result FilterNulls() =>

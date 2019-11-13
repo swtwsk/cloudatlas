@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CloudAtlas.Model;
+using CloudAtlas.Monads;
 
 namespace CloudAtlas.Interpreter
 {
@@ -36,8 +37,8 @@ namespace CloudAtlas.Interpreter
             };
         }
 
-        public override ResultSingle AggregationOperation(AggregationOp op) => new ResultSingle(op(List));
-        public override Result TransformOperation(TransformOp op) => new ResultList(op(List));
+        public override Maybe<ResultSingle> AggregationOperation(AggregationOp op) => new ResultSingle(op(List)).Just();
+        public override Maybe<Result> TransformOperation(TransformOp op) => Maybe<Result>.Just(new ResultList(op(List)));
 
         public override Result FilterNulls() => new ResultList(FilterNullList(List));
         public override Result First(int size) => new ResultSingle(FirstList(List, size));

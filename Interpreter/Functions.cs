@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using CloudAtlas.Model;
+using CloudAtlas.Monads;
 
 namespace CloudAtlas.Interpreter
 {
@@ -17,62 +18,62 @@ namespace CloudAtlas.Interpreter
             _epoch = new ValueTime("2000/01/01 00:00:00.000");
         }
 
-        public Result Evaluate(string name, List<Result> arguments)
+        public Maybe<Result> Evaluate(string name, List<Result> arguments)
         {
             var size = arguments.Count;
             switch (name)
             {
                 case "round":
                     if (size == 1)
-                        return arguments[0].UnaryOperation(Round);
+                        return arguments[0].UnaryOperation(Round).Just();
                     break;
                 case "floor":
                     if (size == 1)
-                        return arguments[0].UnaryOperation(Floor);
+                        return arguments[0].UnaryOperation(Floor).Just();
                     break;
                 case "ceil":
                     if (size == 1)
-                        return arguments[0].UnaryOperation(Ceil);
+                        return arguments[0].UnaryOperation(Ceil).Just();
                     break;
                 case "now":
                     if (size == 0)
-                        return new ResultSingle(new ValueTime(DateTimeOffset.Now));
+                        return Maybe<Result>.Just(new ResultSingle(new ValueTime(DateTimeOffset.Now)));
                     break;
                 case "epoch":
                     if (size == 0)
-                        return new ResultSingle(_epoch);
+                        return new ResultSingle(_epoch).Just().FMap(Result.Id);
                     break;
                 case "count":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Count);
+                        return arguments[0].AggregationOperation(Count).FMap(Result.Id);
                     break;
                 case "size":
                     if (size == 1)
-                        return arguments[0].ValueSize();
+                        return arguments[0].ValueSize().Just();
                     break;
                 case "sum":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Sum);
+                        return arguments[0].AggregationOperation(Sum).FMap(Result.Id);
                     break;
                 case "avg":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Average);
+                        return arguments[0].AggregationOperation(Average).FMap(Result.Id);
                     break;
                 case "land":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(And);
+                        return arguments[0].AggregationOperation(And).FMap(Result.Id);
                     break;
                 case "lor":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Or);
+                        return arguments[0].AggregationOperation(Or).FMap(Result.Id);
                     break;
                 case "min":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Min);
+                        return arguments[0].AggregationOperation(Min).FMap(Result.Id);
                     break;
                 case "max":
                     if (size == 1)
-                        return arguments[0].AggregationOperation(Max);
+                        return arguments[0].AggregationOperation(Max).FMap(Result.Id);
                     break;
                 case "unfold":
                     if (size == 1)
@@ -88,7 +89,7 @@ namespace CloudAtlas.Interpreter
                     break;
                 case "filterNulls":
                     if (size == 1)
-                        return arguments[0].FilterNulls();
+                        return arguments[0].FilterNulls().Just();
                     break;
                 case "first":
                     if (size == 2)
@@ -96,7 +97,7 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].First((int) ((ValueInt) s).Value.Ref);
+                            return arguments[1].First((int) ((ValueInt) s).Value.Ref).Just();
                         throw new ArgumentException(
                             $"First argument must have type {AttributeTypePrimitive.Integer} and be >= 0.");
                     }
@@ -107,7 +108,7 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].Last((int) ((ValueInt) s).Value.Ref);
+                            return arguments[1].Last((int) ((ValueInt) s).Value.Ref).Just();
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }
@@ -118,38 +119,38 @@ namespace CloudAtlas.Interpreter
                         var s = arguments[0].Value;
                         if (s.AttributeType.IsCompatible(AttributeTypePrimitive.Integer) &&
                             ((ValueInt) s).Value.Ref >= 0)
-                            return arguments[1].Random((int) ((ValueInt) s).Value.Ref);
+                            return arguments[1].Random((int) ((ValueInt) s).Value.Ref).Just();
                         throw new ArgumentException("First argument must have type " + AttributeTypePrimitive.Integer
                                                                                      + " and be >= 0.");
                     }
                     break;
                 case "to_boolean":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Boolean);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Boolean).Just();
                     break;
                 case "to_contact":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Contact);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Contact).Just();
                     break;
                 case "to_double":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Double);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Double).Just();
                     break;
                 case "to_duration":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Duration);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Duration).Just();
                     break;
                 case "to_integer":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Integer);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Integer).Just();
                     break;
                 case "to_string":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.String);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.String).Just();
                     break;
                 case "to_time":
                     if (size == 1)
-                        return arguments[0].ConvertTo(AttributeTypePrimitive.Time);
+                        return arguments[0].ConvertTo(AttributeTypePrimitive.Time).Just();
                     break;
                 case "to_set":
                     if (size == 1)
@@ -158,7 +159,7 @@ namespace CloudAtlas.Interpreter
                         if (!t.IsCollection())
                             throw new ArgumentException("First argument must be a collection.");
                         var elementType = ((AttributeTypeCollection) t).ElementType;
-                        return arguments[0].ConvertTo(new AttributeTypeCollection(PrimaryType.Set, elementType));
+                        return arguments[0].ConvertTo(new AttributeTypeCollection(PrimaryType.Set, elementType)).Just();
                     }
                     break;
                 case "to_list":
@@ -168,12 +169,12 @@ namespace CloudAtlas.Interpreter
                         if (!t.IsCollection())
                             throw new ArgumentException("First argument must be a collection.");
                         var elementType = ((AttributeTypeCollection) t).ElementType;
-                        return arguments[0].ConvertTo(new AttributeTypeCollection(PrimaryType.List, elementType));
+                        return arguments[0].ConvertTo(new AttributeTypeCollection(PrimaryType.List, elementType)).Just();
                     }
                     break;
                 case "isNull":
                     if (size == 1)
-                        return arguments[0].IsNull;
+                        return arguments[0].IsNull.Just().FMap(Result.Id);
                     break;
                 default:
                     throw new ArgumentException("Illegal function name.");

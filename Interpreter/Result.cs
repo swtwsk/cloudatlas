@@ -1,6 +1,7 @@
 using System;
 using System.Linq;
 using CloudAtlas.Model;
+using CloudAtlas.Monads;
 
 namespace CloudAtlas.Interpreter
 {
@@ -25,6 +26,8 @@ namespace CloudAtlas.Interpreter
         private static readonly UnaryOp NEGATE = v => v.Negate();
         private static readonly UnaryOp VALUE_SIZE = v => v.ValueSize();
 
+        public static Result Id(Result res) => res;
+
         public abstract Result BinaryOperationTyped(BinaryOp op, ResultSingle right);
 
         public Result BinaryOperation(BinaryOp op, Result right) => right.CallMe(op, this);
@@ -37,9 +40,9 @@ namespace CloudAtlas.Interpreter
         public abstract ValueList List { get; }
         public abstract ValueList Column { get; }
 
-        public abstract ResultSingle AggregationOperation(AggregationOp op);
+        public abstract Maybe<ResultSingle> AggregationOperation(AggregationOp op);
 
-        public abstract Result TransformOperation(TransformOp op);
+        public abstract Maybe<Result> TransformOperation(TransformOp op);
 
         public Result IsEqual(Result right) => right.CallMe(IS_EQUAL, this);
         public Result IsLowerThan(Result right) => right.CallMe(IS_LOWER_THAN, this);
