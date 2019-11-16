@@ -21,11 +21,7 @@ namespace CloudAtlas.Interpreter.Query
             var toReturn = new QueryVisitor().Visit(context).ToList();
             if (toReturn.Any(maybe => maybe.Match(v => v.Name == null, () => false)))
                 throw new ArgumentException("All items in top-level SELECT must be aliased");
-            return toReturn
-                .Select(maybe => maybe.Match(
-                    result => result, 
-                    () => null))
-                .ToList();
+            return toReturn.Sequence().Match(list => list, () => new List<QueryResult>());
         }
 
         public class QueryVisitor : QueryBaseVisitor<IEnumerable<Maybe<QueryResult>>>
