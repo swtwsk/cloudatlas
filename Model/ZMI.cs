@@ -43,6 +43,8 @@ namespace CloudAtlas.Model
             return result;
         }
 
-        public override string ToString() => Attributes.ToString();
+        public override string ToString() => Attributes.TryGetValue("name", out var name)
+            ? name.IsNull ? "/" : name.ToString()
+            : Attributes.ToString();
     }
 }

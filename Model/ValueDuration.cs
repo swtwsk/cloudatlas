@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Reflection;
 using CloudAtlas.Model.Exceptions;
 
@@ -29,10 +30,15 @@ namespace CloudAtlas.Model
         public static ValueDuration operator -(ValueDuration a, ValueDuration b) => new ValueDuration(a.Value - b.Value);
         public static ValueDuration operator *(ValueDuration a, ValueDuration b) => new ValueDuration(a.Value * b.Value);
 
+        private const string ReadDurationFormat = @"d' 'h':'m':'ss'.'fff";
+        private const string PrintDurationFormat = @"d' 'hh':'mm':'ss'.'fff";
         private static long ParseDuration(string value)
         {
-            // TODO
-            throw new NotImplementedException();
+            if (value.Length == 1 && value[0] == '0')
+                return 0L;
+            var plus = value[0] == '+';
+            var duration = TimeSpan.ParseExact(value.Substring(1), ReadDurationFormat, null);
+            return (plus ? 1 : -1) * duration.Ticks / TimeSpan.TicksPerMillisecond;
         }
 
         public override Value IsLowerThan(Value value)
@@ -156,11 +162,18 @@ namespace CloudAtlas.Model
             {
                 PrimaryType.Duration => (Value) this,
                 PrimaryType.Int => new ValueInt(Value),
-                PrimaryType.String => (Value == null ? ValueString.NullString : new ValueString(Value.ToString())),
+                PrimaryType.String => (Value == null ? ValueString.NullString : new ValueString(ToString())),
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };
         }
 
         public override Value GetDefaultValue() => new ValueDuration(0L);
+
+        public override string ToString()
+        {
+            var formatted = TimeSpan.FromTicks(Math.Abs(Value.Ref) * TimeSpan.TicksPerMillisecond)
+                .ToString(PrintDurationFormat, CultureInfo.InvariantCulture);
+            return (Value.Ref < 0 ? "-" : "+") + formatted;
+        }
     }
 }
