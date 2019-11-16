@@ -130,8 +130,8 @@ namespace CloudAtlas.Model
                 {
                     var beneath = new ValueInt(Value.Ref);
                     var newVal = method.Invoke(beneath, new object[]{value});
-                    var innerRefVal = newVal.GetType().GetProperty("Value").GetValue(newVal);
-                    var innerVal = innerRefVal.GetType().GetProperty("Ref").GetValue(innerRefVal);
+                    var innerRefVal = newVal.GetType().GetProperty("Value")?.GetValue(newVal);
+                    var innerVal = innerRefVal?.GetType().GetProperty("Ref")?.GetValue(innerRefVal);
                     outValue = new ValueDuration(Convert.ToInt64(innerVal));
                     return true;
                 }

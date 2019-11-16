@@ -10,7 +10,7 @@ namespace CloudAtlas.Model
 {
     public class ValueList : ValueSimple<IList<Value>>, IList<Value>
     {
-        [Include] private readonly AttributeTypeCollection _type;
+        [Include] private AttributeTypeCollection _type;
 
         [Exclude] private IList<Value> List => base.GetValue();
 

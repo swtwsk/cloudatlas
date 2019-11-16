@@ -1,6 +1,7 @@
 using System;
 using System.Globalization;
 using CloudAtlas.Model.Exceptions;
+using TimeZoneConverter;
 
 namespace CloudAtlas.Model
 {
@@ -12,8 +13,10 @@ namespace CloudAtlas.Model
         private ValueTime() {}
         public ValueTime(RefStruct<long> value) : base(value) {}
         public ValueTime(long value) : base(value) {}
-        public ValueTime(string time) : this(DateTimeOffset.ParseExact(time, ReadTimeFormat, null, 
-            DateTimeStyles.AssumeUniversal).ToUnixTimeMilliseconds()) {}
+        public ValueTime(string time) : this(DateTimeOffset
+            .ParseExact(time, ReadTimeFormat, null, DateTimeStyles.AssumeUniversal)
+            .UtcToCest()
+            .ToUnixTimeMilliseconds()) {}
         public ValueTime(DateTimeOffset dateTimeOffset) : this(dateTimeOffset.ToUnixTimeMilliseconds()) {}
 
         public override AttributeType AttributeType => AttributeTypePrimitive.Time;
@@ -60,14 +63,31 @@ namespace CloudAtlas.Model
             {
                 PrimaryType.String => (Value) (Value == null
                     ? ValueString.NullString
-                    : new ValueString(DateTimeOffset
-                        .FromUnixTimeMilliseconds(Value.Ref)
-                        .ToString(PrintTimeFormat, CultureInfo.InvariantCulture))),
+                    : new ValueString(
+                        TimeZoneInfo.ConvertTime(DateTimeOffset.FromUnixTimeMilliseconds(Value.Ref), TimeUtils.CstZone)
+                            .ToString(PrintTimeFormat, CultureInfo.InvariantCulture)
+                    )),
                 PrimaryType.Time => this,
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };
         }
 
         public override Value GetDefaultValue() => new ValueTime(0L);
+    }
+
+    public static class TimeUtils
+    {
+        public static TimeZoneInfo CstZone => TimeZoneInfo.FindSystemTimeZoneById(
+            Environment.OSVersion.Platform == PlatformID.Win32NT
+                ? TZConvert.IanaToWindows("Europe/London")
+                : "Europe/London");
+        
+        public static DateTimeOffset UtcToCest(this DateTimeOffset original)
+        {
+            var cetTime = TimeZoneInfo.ConvertTime(original, CstZone);
+            return original
+                .Subtract(cetTime.Offset)
+                .ToOffset(cetTime.Offset);
+        }
     }
 }

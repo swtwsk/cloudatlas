@@ -5,8 +5,8 @@ namespace CloudAtlas.Model
 {
     public class ValueContact : Value
     {
-        public PathName Name { get; }
-        public IPAddress Address { get; } // TODO: Check equivalence with InetAddress
+        public PathName Name { get; private set; }
+        public IPAddress Address { get; private set; } // TODO: Check equivalence with InetAddress
 
         private ValueContact() {}
         public ValueContact(PathName name, IPAddress address)
