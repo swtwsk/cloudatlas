@@ -1,7 +1,10 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
+using Shared.Monads;
 
 namespace Shared.Model
 {
@@ -20,14 +23,57 @@ namespace Shared.Model
 
         public void AddSon(ZMI son) => Sons.Add(son);
         public void RemoveSon(ZMI son) => Sons.Remove(son);
+        
+        private string Name => Father == null ? string.Empty : ((ValueString) Attributes.Get("name")).Value;
+        
+        public PathName PathName => Father == null ? PathName.Root : Father.PathName.LevelDown(Name);
 
-        public void PrintAttributes(StreamWriter streamWriter)
+        public bool TrySearch(IReadOnlyList<string> paths, out ZMI zmi)
         {
-            foreach (var (key, value) in Attributes)
-                streamWriter.WriteLine($"{key} : {value.AttributeType} = {value}");
-            streamWriter.WriteLine();
+            if (paths.Count == 1 && paths[0] == Name)
+            {
+                zmi = this;
+                return true;
+            }
+            return TrySearch(paths, 0, out zmi);
+        }
+
+        private bool TrySearch(IReadOnlyList<string> paths, int depth, out ZMI zmi)
+        {
+            if (paths.Count < depth)
+            {
+                zmi = null;
+                return false;
+            }
+            
+            if (paths.Count == depth && paths[depth - 1] == Name)
+            {
+                zmi = this;
+                return true;
+            }
+            
             foreach (var son in Sons)
-                son.PrintAttributes(streamWriter);
+            {
+                var found = son.TrySearch(paths, depth + 1, out zmi);
+                if (found)
+                    return true;
+            }
+
+            zmi = null;
+            return false;
+        }
+
+        public string PrintAttributes()
+        {
+            var sb = new StringBuilder();
+            
+            foreach (var (key, value) in Attributes)
+                sb.AppendLine($"{key} : {value.AttributeType} = {value}");
+            sb.AppendLine();
+            foreach (var son in Sons)
+                sb.Append(son.PrintAttributes());
+
+            return sb.ToString();
         }
         
         public object Clone()
@@ -43,8 +89,6 @@ namespace Shared.Model
             return result;
         }
 
-        public override string ToString() => Attributes.TryGetValue("name", out var name)
-            ? name.IsNull ? "/" : name.ToString()
-            : Attributes.ToString();
+        public override string ToString() => PathName.ToString();
     }
 }

@@ -5,8 +5,9 @@ namespace Shared
     public class RefStruct<T>
         where T : struct
     {
-        public T Ref { get; }
-        
+        public T Ref { get; set; }
+
+        private RefStruct() {}
         public RefStruct(T val) => Ref = val;
 
         public static implicit operator RefStruct<T>(T value) => new RefStruct<T>(value);

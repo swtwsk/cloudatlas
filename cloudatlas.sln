@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Interpreter", "Interpreter\
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudAtlasAgent", "CloudAtlasAgent\CloudAtlasAgent.csproj", "{C89DA3EF-463A-4963-8347-208AAFC08D96}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CloudAtlasClient", "CloudAtlasClient\CloudAtlasClient.csproj", "{AF0361CD-43A2-48F7-95F0-58E04DCEA935}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -58,5 +60,17 @@ Global
 		{C89DA3EF-463A-4963-8347-208AAFC08D96}.Release|x64.Build.0 = Release|Any CPU
 		{C89DA3EF-463A-4963-8347-208AAFC08D96}.Release|x86.ActiveCfg = Release|Any CPU
 		{C89DA3EF-463A-4963-8347-208AAFC08D96}.Release|x86.Build.0 = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|x64.Build.0 = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Debug|x86.Build.0 = Debug|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|x64.ActiveCfg = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|x64.Build.0 = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|x86.ActiveCfg = Release|Any CPU
+		{AF0361CD-43A2-48F7-95F0-58E04DCEA935}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal

@@ -25,7 +25,7 @@ namespace Shared.Model
         }
 
         // TODO: HashCode should be immutable
-        public override int GetHashCode() => Value.GetHashCode();
+        public override int GetHashCode() => Value?.GetHashCode() ?? 0;
 
         public override bool IsNull => Value == null;
 
