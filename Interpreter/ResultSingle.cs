@@ -1,8 +1,8 @@
 using System;
-using CloudAtlas.Model;
-using CloudAtlas.Monads;
+using Shared.Model;
+using Shared.Monads;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public class ResultSingle : Result
     {

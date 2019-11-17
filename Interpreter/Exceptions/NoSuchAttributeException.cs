@@ -1,4 +1,4 @@
-namespace CloudAtlas.Interpreter.Exceptions
+namespace Shared.Interpreter.Exceptions
 {
     public class NoSuchAttributeException : InterpreterException
     {

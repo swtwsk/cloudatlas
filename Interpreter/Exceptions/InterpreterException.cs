@@ -1,6 +1,6 @@
 using System;
 
-namespace CloudAtlas.Interpreter.Exceptions
+namespace Shared.Interpreter.Exceptions
 {
     public abstract class InterpreterException : Exception
     {

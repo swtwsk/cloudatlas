@@ -22,7 +22,7 @@
 using System.Collections.Generic;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
-using CloudAtlas.Interpreter;
+using Shared.Interpreter;
 using IToken = Antlr4.Runtime.IToken;
 using ParserRuleContext = Antlr4.Runtime.ParserRuleContext;
 

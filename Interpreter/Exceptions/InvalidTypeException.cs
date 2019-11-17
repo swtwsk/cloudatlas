@@ -1,6 +1,6 @@
-using CloudAtlas.Model;
+using Shared.Model;
 
-namespace CloudAtlas.Interpreter.Exceptions
+namespace Shared.Interpreter.Exceptions
 {
     public class InvalidTypeException : InterpreterException
     {

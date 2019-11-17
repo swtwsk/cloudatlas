@@ -1,10 +1,9 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
-using CloudAtlas.Model;
-using CloudAtlas.Monads;
+using Shared.Model;
+using Shared.Monads;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public class ResultList : Result
     {

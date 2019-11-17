@@ -1,9 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using CloudAtlas.Model;
+using Shared.Model;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public class Environment : IEnumerable<Result>
     {

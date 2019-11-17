@@ -2,10 +2,10 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
-using CloudAtlas.Interpreter.Exceptions;
-using CloudAtlas.Model;
+using Shared.Interpreter.Exceptions;
+using Shared.Model;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public class Table : IEnumerable<TableRow>
     {

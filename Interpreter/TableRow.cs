@@ -1,8 +1,8 @@
 using System.Collections.Generic;
 using System.Linq;
-using CloudAtlas.Model;
+using Shared.Model;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     // TODO: Ensure immutable
     public class TableRow

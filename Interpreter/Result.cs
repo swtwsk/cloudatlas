@@ -1,9 +1,11 @@
 using System;
 using System.Linq;
-using CloudAtlas.Model;
-using CloudAtlas.Monads;
+using Shared.Interpreter;
+using Shared.Model;
+using Shared.Monads;
+using Shared;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public abstract class Result
     {

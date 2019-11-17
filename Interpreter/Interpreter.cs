@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using CloudAtlas.Interpreter.Query;
-using CloudAtlas.Model;
-using CloudAtlas.Monads;
+using Shared.Model;
+using Shared.Monads;
+using Interpreter.Query;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public static class Interpreter
     {

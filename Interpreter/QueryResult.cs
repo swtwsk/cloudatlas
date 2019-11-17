@@ -1,6 +1,6 @@
-using CloudAtlas.Model;
+using Shared.Model;
 
-namespace CloudAtlas.Interpreter
+namespace Interpreter
 {
     public class QueryResult {
         public Attribute Name { get; }
@@ -15,5 +15,4 @@ namespace CloudAtlas.Interpreter
 
         public override string ToString() => $"{Name}: {Value}";
     }
-
 }

@@ -3,12 +3,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using Antlr4.Runtime.Tree;
-using CloudAtlas.Interpreter.Exceptions;
-using CloudAtlas.Model;
-using CloudAtlas.Monads;
-using Attribute = CloudAtlas.Model.Attribute;
+using Shared;
+using Shared.Interpreter.Exceptions;
+using Shared.Model;
+using Shared.Monads;
+using Attribute = Shared.Model.Attribute;
 
-namespace CloudAtlas.Interpreter.Query
+namespace Interpreter.Query
 {
     public class QueryVisitor : QueryBaseVisitor<IEnumerable<Maybe<QueryResult>>>
     {
