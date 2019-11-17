@@ -3,21 +3,22 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using Antlr4.Runtime;
+using CloudAtlas.Interpreter;
 using CloudAtlas.Model;
 
 namespace CloudAtlas
 {
 	public class Program {
-		private static ZMI root;
+		private static ZMI _root;
 	
 		public static void Main(string[] args) {
-			root = CreateTestHierarchy();
+			_root = CreateTestHierarchy();
 			var scanner = Console.In;
 			string line;
 		
 			while ((line = scanner.ReadLine()) != null)
 			{
-				ExecuteQueries(root, line);
+				ExecuteQueries(_root, line);
 			}
 		}
 	
@@ -36,13 +37,10 @@ namespace CloudAtlas
 			
 			var lexer = new QueryLexer(new AntlrInputStream(query));
 			var parser = new QueryParser(new CommonTokenStream(lexer));
-			var result = new Interpreter.Query.Interpreter(zmi).VisitProgram(parser.program());
+			var result = parser.program().VisitProgram(zmi);
 			var zone = GetPathName(zmi);
 			
 			foreach (var r in result) {
-				if (r == null)
-					continue;
-				
 				Console.WriteLine(zone + ": " + r);
 				zmi.Attributes.AddOrChange(r.Name, r.Value);
 			}
@@ -63,16 +61,16 @@ namespace CloudAtlas
 		
 			List<Value> list;
 		
-			root = new ZMI();
-			root.Attributes.Add("level", new ValueInt(0L));
-			root.Attributes.Add("name", new ValueString(null));
-			root.Attributes.Add("owner", new ValueString("/uw/violet07"));
-			root.Attributes.Add("timestamp", new ValueTime("2012/11/09 20:10:17.342"));
-			root.Attributes.Add("contacts", new ValueSet(AttributeTypePrimitive.Contact));
-			root.Attributes.Add("cardinality", new ValueInt(0L));
+			_root = new ZMI();
+			_root.Attributes.Add("level", new ValueInt(0L));
+			_root.Attributes.Add("name", new ValueString(null));
+			_root.Attributes.Add("owner", new ValueString("/uw/violet07"));
+			_root.Attributes.Add("timestamp", new ValueTime("2012/11/09 20:10:17.342"));
+			_root.Attributes.Add("contacts", new ValueSet(AttributeTypePrimitive.Contact));
+			_root.Attributes.Add("cardinality", new ValueInt(0L));
 		
-			var uw = new ZMI(root);
-			root.AddSon(uw);
+			var uw = new ZMI(_root);
+			_root.AddSon(uw);
 			uw.Attributes.Add("level", new ValueInt(1L));
 			uw.Attributes.Add("name", new ValueString("uw"));
 			uw.Attributes.Add("owner", new ValueString("/uw/violet07"));
@@ -80,8 +78,8 @@ namespace CloudAtlas
 			uw.Attributes.Add("contacts", new ValueSet(AttributeTypePrimitive.Contact));
 			uw.Attributes.Add("cardinality", new ValueInt(0L));
 		
-			var pjwstk = new ZMI(root);
-			root.AddSon(pjwstk);
+			var pjwstk = new ZMI(_root);
+			_root.AddSon(pjwstk);
 			pjwstk.Attributes.Add("level", new ValueInt(1L));
 			pjwstk.Attributes.Add("name", new ValueString("pjwstk"));
 			pjwstk.Attributes.Add("owner", new ValueString("/pjwstk/whatever01"));
@@ -206,7 +204,7 @@ namespace CloudAtlas
 			}.ToList();
 			whatever02.Attributes.Add("php_modules", new ValueList(list, AttributeTypePrimitive.String));
 		
-			return root;
+			return _root;
 		}
 	}
 }
