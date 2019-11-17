@@ -17,6 +17,7 @@ namespace CloudAtlasAgent
 		private static ZMI _zmi;
 		
 		private static Dictionary<string, string> _queries = new Dictionary<string, string>();
+		private static ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
 
 		public static void Main(string[] args)
 		{
@@ -74,12 +75,7 @@ namespace CloudAtlasAgent
 		private static Task<AttributesMap> GetAttributes(string pathName, ServerCallContext ctx)
 		{
 			Console.WriteLine($"GetAttributes({pathName})");
-			var paths = pathName.Split("/");
-
-			if (paths[0] == string.Empty)
-				paths = paths.Skip(1).ToArray();
-			
-			return Task.FromResult(_zmi.TrySearch(paths, out var zmi) ? zmi.Attributes : null);
+			return Task.FromResult(TrySearchZMI(_zmi, pathName, out var zmi) ? zmi.Attributes : null);
 		}
 
 		private static Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
@@ -108,12 +104,34 @@ namespace CloudAtlasAgent
 
 		private static Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)
 		{
-			throw new NotImplementedException();
+			Console.WriteLine($"SetAttribute({attributeMessage})");
+			var (pathName, attribute, value) = attributeMessage;
+			
+			if (!TrySearchZMI(_zmi, pathName, out var zmi))
+				return Task.FromResult(new RefStruct<bool>(false));
+			
+			zmi.Attributes.AddOrChange(attribute, value);
+			
+			foreach (var query in _queries.Values)
+				Interpreter.Interpreter.ExecuteQueries(_zmi, query);
+			
+			return Task.FromResult(new RefStruct<bool>(true));
 		}
 
 		private static Task<RefStruct<bool>> SetContacts(ValueSet contacts, ServerCallContext ctx)
 		{
-			throw new NotImplementedException();
+			_contacts = contacts;
+			return Task.FromResult(new RefStruct<bool>(true));
+		}
+
+		private static bool TrySearchZMI(ZMI startPoint, string pathName, out ZMI zmi)
+		{
+			var paths = pathName.Split("/");
+
+			if (paths[0] == string.Empty)
+				paths = paths.Skip(1).ToArray();
+
+			return startPoint.TrySearch(paths, out zmi);
 		}
 
 		#region Debug

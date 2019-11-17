@@ -41,5 +41,12 @@ namespace Shared.RPC
         public string PathName { get; set; }
         public Attribute Attribute { get; set; }
         public Value Value { get; set; }
+
+        public void Deconstruct(out string pathName, out Attribute attribute, out Value value)
+        {
+            pathName = PathName;
+            attribute = Attribute;
+            value = Value;
+        }
     }
 }

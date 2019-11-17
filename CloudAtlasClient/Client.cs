@@ -1,15 +1,10 @@
 ﻿using System;
-using System.IO;
-using System.Net;
 using System.Threading.Tasks;
-using Ceras;
-using Ceras.Resolvers;
 using Grpc.Core;
 using Shared;
 using Shared.Model;
 using Shared.RPC;
-using Shared.Serializers;
-using Attribute = System.Attribute;
+using Attribute = Shared.Model.Attribute;
 
 namespace CloudAtlasClient
 {
@@ -44,12 +39,15 @@ namespace CloudAtlasClient
                     await InstallAsync(invoker, o[1]);
                     break;
                 case "UNINSTALL":
+                    await UninstallAsync(invoker, o[1]);
                     break;
                 case "SETATTR":
+                    var setters = o[1].Split(" ", 3);
+                    await SetAttribute(invoker, setters[0], new Attribute(setters[1]),  // TODO: for now
+                        new ValueBoolean(bool.Parse(setters[2])));
                     break;
                 case "SETCONTACTS":
-                    break;
-                default:
+                    await SetContacts(invoker, new ValueSet(AttributeTypePrimitive.Contact));  // TODO: for now
                     break;
             }
 
@@ -76,7 +74,7 @@ namespace CloudAtlasClient
             Console.WriteLine("GetAttributes:");
             foreach (var (attribute, value) in result)
             {
-                Console.WriteLine($"  {attribute}: {value}");
+                Console.WriteLine($"  {attribute}: {((ValueString)value.ConvertTo(AttributeTypePrimitive.String)).Value}");
             }
         }
 
@@ -85,6 +83,28 @@ namespace CloudAtlasClient
             using var call = invoker.AsyncUnaryCall(AgentMethods.InstallQuery, null, new CallOptions(), query);
             var result = await call.ResponseAsync;
             Console.WriteLine($"InstallAsync = {result.Ref}");
+        }
+        
+        private static async Task UninstallAsync(CallInvoker invoker, string queryName)
+        {
+            using var call = invoker.AsyncUnaryCall(AgentMethods.UninstallQuery, null, new CallOptions(), queryName);
+            var result = await call.ResponseAsync;
+            Console.WriteLine($"UninstallAsync = {result.Ref}");
+        }
+        
+        private static async Task SetAttribute(CallInvoker invoker, string pathName, Attribute attribute, Value value)
+        {
+            var attributeMsg = new AttributeMessage {PathName = pathName, Attribute = attribute, Value = value};
+            using var call = invoker.AsyncUnaryCall(AgentMethods.SetAttribute, null, new CallOptions(), attributeMsg);
+            var result = await call.ResponseAsync;
+            Console.WriteLine($"SetAttribute = {result.Ref}");
+        }
+        
+        private static async Task SetContacts(CallInvoker invoker, ValueSet contacts)
+        {
+            using var call = invoker.AsyncUnaryCall(AgentMethods.SetContacts, null, new CallOptions(), contacts);
+            var result = await call.ResponseAsync;
+            Console.WriteLine($"SetContacts = {result.Ref}");
         }
     }
 }

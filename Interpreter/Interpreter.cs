@@ -10,7 +10,7 @@ namespace Interpreter
 {
     public static class Interpreter
     {
-        public static void ExecuteQueries(ZMI zmi, string query, bool log)
+        public static void ExecuteQueries(ZMI zmi, string query, bool log = false)
         {
             if (!zmi.Sons.Any()) 
                 return;
