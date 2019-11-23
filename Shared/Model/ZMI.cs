@@ -28,9 +28,14 @@ namespace Shared.Model
         
         public PathName PathName => Father == null ? PathName.Root : Father.PathName.LevelDown(Name);
 
-        public bool TrySearch(IReadOnlyList<string> paths, out ZMI zmi)
+        public bool TrySearch(string pathName, out ZMI zmi)
         {
-            if (paths.Count == 1 && paths[0] == Name)
+            var paths = pathName.Split("/");
+
+            if (paths[0] == string.Empty)
+                paths = paths.Skip(1).ToArray();
+            
+            if ((paths.Length == 1 && paths[0] == Name) || paths.Length == 0)
             {
                 zmi = this;
                 return true;

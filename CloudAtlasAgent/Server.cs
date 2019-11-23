@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Grpc.Core;
 using Shared;
 using Shared.Model;
+using Shared.Parsers;
 using Shared.RPC;
 
 namespace CloudAtlasAgent
@@ -25,7 +26,13 @@ namespace CloudAtlasAgent
 			if (args.Length == 2)
 				serverPort = new ServerPort(args[0], int.Parse(args[1]), ServerCredentials.Insecure);
 
-			_zmi = CreateTestHierarchy();
+			var scanner = Console.In;
+			//_zmi = CreateTestHierarchy();
+			if (!ZMIParser.TryParseZMI(scanner, ref _zmi))
+			{
+				Console.WriteLine("ERROR: Couldn't parse ZMI");
+				return;
+			}
 
 			RunServer(serverPort).Wait();
 		}
@@ -75,7 +82,7 @@ namespace CloudAtlasAgent
 		private static Task<AttributesMap> GetAttributes(string pathName, ServerCallContext ctx)
 		{
 			Console.WriteLine($"GetAttributes({pathName})");
-			return Task.FromResult(TrySearchZMI(_zmi, pathName, out var zmi) ? zmi.Attributes : null);
+			return Task.FromResult(_zmi.TrySearch(pathName, out var zmi) ? zmi.Attributes : null);
 		}
 
 		private static Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
@@ -107,7 +114,7 @@ namespace CloudAtlasAgent
 			Console.WriteLine($"SetAttribute({attributeMessage})");
 			var (pathName, attribute, value) = attributeMessage;
 			
-			if (!TrySearchZMI(_zmi, pathName, out var zmi))
+			if (!_zmi.TrySearch(pathName, out var zmi))
 				return Task.FromResult(new RefStruct<bool>(false));
 			
 			zmi.Attributes.AddOrChange(attribute, value);
@@ -122,16 +129,6 @@ namespace CloudAtlasAgent
 		{
 			_contacts = contacts;
 			return Task.FromResult(new RefStruct<bool>(true));
-		}
-
-		private static bool TrySearchZMI(ZMI startPoint, string pathName, out ZMI zmi)
-		{
-			var paths = pathName.Split("/");
-
-			if (paths[0] == string.Empty)
-				paths = paths.Skip(1).ToArray();
-
-			return startPoint.TrySearch(paths, out zmi);
 		}
 
 		#region Debug

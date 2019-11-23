@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Text.RegularExpressions;
 using Shared.Model.Exceptions;
 
@@ -19,7 +20,7 @@ namespace Shared.Model
                 case PrimaryType.Boolean:
                     return new ValueBoolean(bool.Parse(Value));
                 case PrimaryType.Double:
-                    return double.TryParse(Value, out var dResult) ? new ValueDouble(dResult) : new ValueDouble(null);
+                    return double.TryParse(Value, NumberStyles.Any, CultureInfo.InvariantCulture, out var dResult) ? new ValueDouble(dResult) : new ValueDouble(null);
                 case PrimaryType.Duration:
                     return new ValueDuration(Value);
                 case PrimaryType.Int:
