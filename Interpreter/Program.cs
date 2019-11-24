@@ -33,7 +33,7 @@ namespace Interpreter
 		
 			while ((line = scanner.ReadLine()) != null)
 			{
-				Interpreter.ExecuteQueries(_root, line);
+				Interpreter.ExecuteQueries(_root, line, true);
 			}
 		}
 	}
