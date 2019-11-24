@@ -32,8 +32,10 @@ namespace Shared.Parsers
                     continue;
                 }
 
-                if (!TryParseAttributeLine(line, current))
+                if (!TryParseAttributeLine(line, out var attribute, out var created))
                     return false;
+                
+                current?.Attributes.AddOrChange(attribute, created);
             }
 
             return true;
@@ -57,9 +59,12 @@ namespace Shared.Parsers
             return true;
         }
 
-        private static bool TryParseAttributeLine(string line, ZMI current)
+        public static bool TryParseAttributeLine(string line, out Attribute attribute, out Value value)
         {
             line = line.TrimStart(' ');
+
+            attribute = null;
+            value = null;
 
             var splitByColon = line.Split(':', 2);
             if (splitByColon.Length != 2)
@@ -69,18 +74,15 @@ namespace Shared.Parsers
             if (splitByEqualSign.Length != 2)
                 return false;
             var type = splitByEqualSign[0].Trim(' ');
-            var value = splitByEqualSign[1].Trim(' ');
+            var valueString = splitByEqualSign[1].Trim(' ');
 
-            if (!ValueFactory.TryCreateValue(type, value, out var created))
+            if (!ValueFactory.TryCreateValue(type, valueString, out value))
                 return false;
             
-            var attribute = new Attribute(attributeName);
-            current.Attributes.AddOrChange(attribute, created);
+            attribute = new Attribute(attributeName);
             
             return true;
         }
-        
-        
     }
 
     public static class ValueFactory

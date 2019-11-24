@@ -1,11 +1,6 @@
 ﻿using System;
-using System.Threading.Tasks;
 using CommandLine;
-using Grpc.Core;
 using Nancy.Hosting.Self;
-using Shared.Model;
-using Shared.RPC;
-using Attribute = Shared.Model.Attribute;
 
 namespace CloudAtlasClient
 {
@@ -48,21 +43,6 @@ namespace CloudAtlasClient
             host.Start();
             Console.WriteLine($"Client running on {apiUri}. Press Enter to stop it...");
             Console.ReadLine();
-        }
-
-        private static async Task SetAttribute(CallInvoker invoker, string pathName, Attribute attribute, Value value)
-        {
-            var attributeMsg = new AttributeMessage {PathName = pathName, Attribute = attribute, Value = value};
-            using var call = invoker.AsyncUnaryCall(AgentMethods.SetAttribute, null, new CallOptions(), attributeMsg);
-            var result = await call.ResponseAsync;
-            Console.WriteLine($"SetAttribute = {result.Ref}");
-        }
-        
-        private static async Task SetContacts(CallInvoker invoker, ValueSet contacts)
-        {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.SetContacts, null, new CallOptions(), contacts);
-            var result = await call.ResponseAsync;
-            Console.WriteLine($"SetContacts = {result.Ref}");
         }
     }
 }
