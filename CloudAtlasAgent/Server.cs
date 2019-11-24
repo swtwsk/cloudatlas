@@ -15,8 +15,11 @@ namespace CloudAtlasAgent
 	public class Server
 	{
 		private static ZMI _zmi;
+		private static readonly object _zmiLock = new object();
 		private static Dictionary<string, string> _queries = new Dictionary<string, string>();
+		private static readonly object _queriesLock = new object();
 		private static ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
+		private static readonly object _contactsLock = new object();
 		private static bool _log = false;
 		
 		class Options
@@ -114,7 +117,8 @@ namespace CloudAtlasAgent
 					GetRecursiveZones(son);
 			}
 			
-			GetRecursiveZones(_zmi);
+			lock(_zmiLock)
+				GetRecursiveZones(_zmi);
 
 			return Task.FromResult(set);
 		}
@@ -123,16 +127,25 @@ namespace CloudAtlasAgent
 		{
 			if (_log)
 				Console.WriteLine($"GetAttributes({pathName})");
-			
-			return Task.FromResult(_zmi.TrySearch(pathName, out var zmi) ? zmi.Attributes : null);
+
+			AttributesMap toReturn;
+			lock (_zmiLock)
+			{
+				toReturn = _zmi.TrySearch(pathName, out var zmi) ? zmi.Attributes : null;
+			}
+			return Task.FromResult(toReturn);
 		}
 
 		private static Task<HashSet<string>> GetQueries(Empty _, ServerCallContext ctx)
 		{
 			if (_log)
 				Console.WriteLine("GetQueries");
+
+			HashSet<string> toReturn;
+			lock (_queriesLock)
+				toReturn = _queries.Keys.ToHashSet();
 			
-			return Task.FromResult(_queries.Keys.ToHashSet());
+			return Task.FromResult(toReturn);
 		}
 
 		private static Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
@@ -150,7 +163,8 @@ namespace CloudAtlasAgent
 			if (!_queries.TryAdd(name, innerQueries))
 				return Task.FromResult(new RefStruct<bool>(false));
 
-			Interpreter.Interpreter.ExecuteQueries(_zmi, innerQueries, false);
+			lock (_zmiLock)
+				Interpreter.Interpreter.ExecuteQueries(_zmi, innerQueries, false);
 
 			return Task.FromResult(new RefStruct<bool>(true));
 		}
@@ -159,8 +173,12 @@ namespace CloudAtlasAgent
 		{
 			if (_log)
 				Console.WriteLine($"UninstallQuery({queryName})");
+
+			bool toReturn;
+			lock (_queriesLock)
+				toReturn = _queries.Remove(queryName);
 			
-			return Task.FromResult(new RefStruct<bool>(_queries.Remove(queryName)));
+			return Task.FromResult(new RefStruct<bool>(toReturn));
 		}
 
 		private static Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)
@@ -169,21 +187,28 @@ namespace CloudAtlasAgent
 				Console.WriteLine($"SetAttribute({attributeMessage})");
 			
 			var (pathName, attribute, value) = attributeMessage;
-			
-			if (!_zmi.TrySearch(pathName, out var zmi))
-				return Task.FromResult(new RefStruct<bool>(false));
-			
-			zmi.Attributes.AddOrChange(attribute, value);
-			
-			foreach (var query in _queries.Values)
-				Interpreter.Interpreter.ExecuteQueries(_zmi, query);
-			
+
+			lock (_zmiLock)
+			{
+				if (!_zmi.TrySearch(pathName, out var zmi))
+					return Task.FromResult(new RefStruct<bool>(false));
+
+				zmi.Attributes.AddOrChange(attribute, value);
+
+				lock (_queriesLock)
+				{
+					foreach (var query in _queries.Values)
+						Interpreter.Interpreter.ExecuteQueries(_zmi, query);
+				}
+			}
+
 			return Task.FromResult(new RefStruct<bool>(true));
 		}
 
 		private static Task<RefStruct<bool>> SetContacts(ValueSet contacts, ServerCallContext ctx)
 		{
-			_contacts = contacts;
+			lock (_contactsLock)
+				_contacts = contacts;
 			return Task.FromResult(new RefStruct<bool>(true));
 		}
 	}
