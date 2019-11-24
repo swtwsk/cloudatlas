@@ -3,6 +3,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Nancy;
+using Nancy.Configuration;
 using Nancy.Conventions;
 using Nancy.Extensions;
 using Nancy.TinyIoc;
@@ -21,18 +22,26 @@ namespace CloudAtlasClient
         {
             _serverData = serverData;
             
-            Get("/", parameters => Response.AsFile("static/index.html", "text/html"));
-            Get("/zmi", async _ =>
+            Get("/", _ => Response.AsFile("dist/index.html", "text/html"));
+            Get("/zmis", async _ =>
             {
                 var result = await GetZones(GetInvoker());
+                return Response.AsJson(result);
+            });
+            Get("/zmi", async parameters =>
+            {
+                var result = await GetAttributes(GetInvoker(), "/");
                 return Response.AsJson(result);
             });
             Get("/zmi/{path*}", async parameters =>
             {
                 string path = parameters.path;
-                if (path.Equals("root"))
-                    path = "/";
                 var result = await GetAttributes(GetInvoker(), path);
+                return Response.AsJson(result);
+            });
+            Get("/query", async _ =>
+            {
+                var result = await GetQueries(GetInvoker());
                 return Response.AsJson(result);
             });
             Post("/query", async parameters =>
@@ -69,15 +78,28 @@ namespace CloudAtlasClient
             return await call.ResponseAsync;
         }
         
-        private static async Task<Dictionary<string, string>> GetAttributes(CallInvoker invoker, string pathName)
+        private static async Task<Dictionary<string, IsNumericResponse>> GetAttributes(CallInvoker invoker, string pathName)
         {
             using var call = invoker.AsyncUnaryCall(AgentMethods.GetAttributes, null, new CallOptions(), pathName);
             var result = await call.ResponseAsync;
-            
+
+            bool IsNumeric(AttributeType attributeType) =>
+                new[] {PrimaryType.Double, PrimaryType.Int}.Contains(attributeType.PrimaryType);
+
             return result.ToDictionary(
                 pair => pair.Key.Name,
-                pair => ((ValueString) pair.Value.ConvertTo(AttributeTypePrimitive.String)).Value
+                pair => new IsNumericResponse
+                {
+                    Value = ((ValueString) pair.Value.ConvertTo(AttributeTypePrimitive.String)).Value,
+                    IsNumeric = IsNumeric(pair.Value.AttributeType)
+                }
             );
+        }
+        
+        private static async Task<HashSet<string>> GetQueries(CallInvoker invoker)
+        {
+            using var call = invoker.AsyncUnaryCall(AgentMethods.GetQueries, null, new CallOptions(), new Empty());
+            return await call.ResponseAsync;
         }
         
         private static async Task<bool> InstallAsync(CallInvoker invoker, string query)
@@ -93,6 +115,12 @@ namespace CloudAtlasClient
             var result = await call.ResponseAsync;
             return result.Ref;
         }
+
+        private struct IsNumericResponse
+        {
+            public string Value;
+            public bool IsNumeric;
+        }
     }
     
     public class Bootstrapper : DefaultNancyBootstrapper
@@ -103,11 +131,23 @@ namespace CloudAtlasClient
         {
             _serverData = serverData;
         }
-        
+
+        public override void Configure(INancyEnvironment environment)
+        {
+            base.Configure(environment);
+            environment.Tracing(enabled: false, displayErrorTraces: true);
+        }
+
         protected override void ConfigureConventions(NancyConventions nancyConventions)
         {
             nancyConventions.StaticContentsConventions.Add(
-                StaticContentConventionBuilder.AddDirectory("static", @"static")
+                StaticContentConventionBuilder.AddDirectory("/", @"dist")
+            );
+            nancyConventions.StaticContentsConventions.Add(
+                StaticContentConventionBuilder.AddDirectory("/js", @"dist/js")
+            );
+            nancyConventions.StaticContentsConventions.Add(
+                StaticContentConventionBuilder.AddDirectory("/css", @"dist/css")
             );
             base.ConfigureConventions(nancyConventions);
         }

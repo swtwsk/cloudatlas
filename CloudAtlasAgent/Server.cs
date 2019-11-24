@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using CommandLine;
 using Grpc.Core;
@@ -78,6 +79,7 @@ namespace CloudAtlasAgent
 					ServerServiceDefinition.CreateBuilder()
 						.AddMethod(AgentMethods.GetZones, GetZones)
 						.AddMethod(AgentMethods.GetAttributes, GetAttributes)
+						.AddMethod(AgentMethods.GetQueries, GetQueries)
 						.AddMethod(AgentMethods.InstallQuery, InstallQuery)
 						.AddMethod(AgentMethods.UninstallQuery, UninstallQuery)
 						.AddMethod(AgentMethods.SetAttribute, SetAttribute)
@@ -114,6 +116,12 @@ namespace CloudAtlasAgent
 		{
 			Console.WriteLine($"GetAttributes({pathName})");
 			return Task.FromResult(_zmi.TrySearch(pathName, out var zmi) ? zmi.Attributes : null);
+		}
+
+		private static Task<HashSet<string>> GetQueries(Empty _, ServerCallContext ctx)
+		{
+			Console.WriteLine("GetQueries");
+			return Task.FromResult(_queries.Keys.ToHashSet());
 		}
 
 		private static Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)

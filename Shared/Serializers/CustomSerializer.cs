@@ -7,8 +7,7 @@ namespace Shared.Serializers
 {
     public static class CustomSerializer
     {
-        private static CerasSerializer _serializer = null;
-        public static CerasSerializer Serializer => _serializer ??= new CerasSerializer(SerializerConfig);
+        public static CerasSerializer Serializer => new CerasSerializer(SerializerConfig);
 
         private static SerializerConfig _serializerConfig;
         public static SerializerConfig SerializerConfig

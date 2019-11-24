@@ -18,6 +18,10 @@ namespace Shared.RPC
             MethodsUtils.GetMethod<string, AttributesMap>(MethodType.Unary, ServiceName, "GetAttributes",
                 CustomSerializer.Serializer);
 
+        public static Method<Empty, HashSet<string>> GetQueries { get; } =
+            MethodsUtils.GetMethod<Empty, HashSet<string>>(MethodType.Unary, ServiceName, "GetQueries",
+                CustomSerializer.Serializer);
+
         public static Method<string, RefStruct<bool>> InstallQuery { get; } =
             MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, ServiceName, "InstallQuery",
                 CustomSerializer.Serializer);
@@ -25,8 +29,7 @@ namespace Shared.RPC
         public static Method<string, RefStruct<bool>> UninstallQuery { get; } =
             MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, ServiceName, "UninstallQuery",
                 CustomSerializer.Serializer);
-
-
+        
         public static Method<AttributeMessage, RefStruct<bool>> SetAttribute { get; } =
             MethodsUtils.GetMethod<AttributeMessage, RefStruct<bool>>(MethodType.Unary, ServiceName, "SetAttribute",
                 CustomSerializer.Serializer);
