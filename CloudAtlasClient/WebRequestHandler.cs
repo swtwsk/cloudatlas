@@ -132,12 +132,6 @@ namespace CloudAtlasClient
             _serverData = serverData;
         }
 
-        public override void Configure(INancyEnvironment environment)
-        {
-            base.Configure(environment);
-            environment.Tracing(enabled: false, displayErrorTraces: true);
-        }
-
         protected override void ConfigureConventions(NancyConventions nancyConventions)
         {
             nancyConventions.StaticContentsConventions.Add(

@@ -17,6 +17,7 @@ namespace CloudAtlasAgent
 		private static ZMI _zmi;
 		private static Dictionary<string, string> _queries = new Dictionary<string, string>();
 		private static ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
+		private static bool _log = false;
 		
 		class Options
 		{
@@ -28,6 +29,9 @@ namespace CloudAtlasAgent
 			
 			[Option('c', "config", Default = "zmis.txt", HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
+			
+			[Option('l', "log", Default = false, HelpText = "Enable logging of incoming RMIs")]
+			public bool Log { get; set; }
 		}
 
 		private static bool TryParseConfig(string pathToConfig, out ZMI zmi)
@@ -58,6 +62,7 @@ namespace CloudAtlasAgent
 					if (!TryParseConfig(opts.ConfigFile, out _zmi))
 						Environment.Exit(1);
 					serverPort = new ServerPort(opts.HostName.Trim(' '), opts.PortNumber, ServerCredentials.Insecure);
+					_log = opts.Log;
 				})
 				.WithNotParsed(errs =>
 				{
@@ -97,7 +102,9 @@ namespace CloudAtlasAgent
 		
 		private static Task<HashSet<string>> GetZones(Empty _, ServerCallContext ctx)
 		{
-			Console.WriteLine("GetZones");
+			if (_log)
+				Console.WriteLine("GetZones");
+			
 			var set = new HashSet<string>();
 			
 			void GetRecursiveZones(ZMI zmi)
@@ -114,19 +121,25 @@ namespace CloudAtlasAgent
 
 		private static Task<AttributesMap> GetAttributes(string pathName, ServerCallContext ctx)
 		{
-			Console.WriteLine($"GetAttributes({pathName})");
+			if (_log)
+				Console.WriteLine($"GetAttributes({pathName})");
+			
 			return Task.FromResult(_zmi.TrySearch(pathName, out var zmi) ? zmi.Attributes : null);
 		}
 
 		private static Task<HashSet<string>> GetQueries(Empty _, ServerCallContext ctx)
 		{
-			Console.WriteLine("GetQueries");
+			if (_log)
+				Console.WriteLine("GetQueries");
+			
 			return Task.FromResult(_queries.Keys.ToHashSet());
 		}
 
 		private static Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
 		{
-			Console.WriteLine($"InstallQuery({query})");
+			if (_log)
+				Console.WriteLine($"InstallQuery({query})");
+			
 			var q = query.Split(":", 2);
 			if (q.Length != 2)
 				return Task.FromResult(new RefStruct<bool>(false));
@@ -144,13 +157,17 @@ namespace CloudAtlasAgent
 
 		private static Task<RefStruct<bool>> UninstallQuery(string queryName, ServerCallContext ctx)
 		{
-			Console.WriteLine($"UninstallQuery({queryName})");
+			if (_log)
+				Console.WriteLine($"UninstallQuery({queryName})");
+			
 			return Task.FromResult(new RefStruct<bool>(_queries.Remove(queryName)));
 		}
 
 		private static Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)
 		{
-			Console.WriteLine($"SetAttribute({attributeMessage})");
+			if (_log)
+				Console.WriteLine($"SetAttribute({attributeMessage})");
+			
 			var (pathName, attribute, value) = attributeMessage;
 			
 			if (!_zmi.TrySearch(pathName, out var zmi))
