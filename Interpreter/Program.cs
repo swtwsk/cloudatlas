@@ -33,7 +33,15 @@ namespace Interpreter
 		
 			while ((line = scanner.ReadLine()) != null)
 			{
-				Interpreter.ExecuteQueries(_root, line, true);
+				var inputLine = line.Split(':');
+				if (inputLine.Length > 2)
+				{
+					Console.Error.WriteLine($"Wrong input");
+					continue;
+				}
+				
+				var query = inputLine.Length == 2 ? inputLine[1] : inputLine[0];
+				Interpreter.ExecuteQueries(_root, query.TrimEnd(';'), true);
 			}
 		}
 	}
