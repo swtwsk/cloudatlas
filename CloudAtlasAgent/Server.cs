@@ -2,7 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using CloudAtlasAgent.Modules;
+using CloudAtlasAgent.Modules.Messages;
 using CommandLine;
 using Grpc.Core;
 using Shared;
@@ -74,7 +77,31 @@ namespace CloudAtlasAgent
 					Environment.Exit(1);
 				});
 			
-			RunServer(serverPort).Wait();
+			TestModule();
+			//RunServer(serverPort).Wait();
+		}
+
+		private static void TestModule()
+		{
+			Console.WriteLine("Test started...");
+			using var er = new ExecutorRegistry();
+			var e = new Executor(er);
+			var timer = new TimerModule();
+			if (!e.TryAddModule(timer))
+			{
+				Console.WriteLine("Could not add TimerModule");
+			}
+
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME")));
+
+			if (e.TryAddModule(timer))
+			{
+				Console.WriteLine("Could add TimerModule (sic!)");
+			}
+			
+			Thread.Sleep(5000);
+			Console.WriteLine("Aha");
 		}
 
 		private static async Task RunServer(ServerPort serverPort)
