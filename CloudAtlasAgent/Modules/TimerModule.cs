@@ -10,8 +10,8 @@ namespace CloudAtlasAgent.Modules
     {
         public bool Equals(IModule other) => other is TimerModule;
 
-        private BlockingCollection<TimerCallback> _priorityQueue =
-            new BlockingCollection<TimerCallback>(new PriorityQueue<TimerCallback>());
+        private readonly BlockingCollection<TimerCallback> _priorityQueue =
+            new BlockingCollection<TimerCallback>(new BlockingPriorityQueue<TimerCallback>());
         private readonly Thread _sleeperThread;
 
         public TimerModule()
@@ -64,14 +64,7 @@ namespace CloudAtlasAgent.Modules
             
             public int CompareTo(TimerCallback other) => other == null ? 1 : Delay.CompareTo(other.Delay);
 
-            public bool Equals(TimerCallback other)
-            {
-                if (other == null)
-                    return false;
-
-                return Delay == other.Delay && Callback == other.Callback;  // TODO: Check it
-            }
-
+            public bool Equals(TimerCallback other) => other != null && ReferenceEquals(this, other);
         }
 
         private sealed class Sleeper
@@ -88,7 +81,9 @@ namespace CloudAtlasAgent.Modules
                         Logger.Log("NO ELO Z SLEEPERA");
                         var callback = _priorityQueue.Take();
                         Logger.Log($"Took {callback} out of priorityQueue");
-                        Thread.Sleep(callback.Delay - DateTimeOffset.Now);
+                        var toSleep = callback.Delay - DateTimeOffset.Now;
+                        if (toSleep.TotalMilliseconds > 0)
+                            Thread.Sleep(toSleep);
                         Logger.Log("Sleepy sleeped");
                         callback.Callback();
                     }
