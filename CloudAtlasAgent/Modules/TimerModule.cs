@@ -11,6 +11,10 @@ namespace CloudAtlasAgent.Modules
     {
         public bool Equals(IModule other) => other is TimerModule;
 
+        public override bool Equals(object? obj) => obj != null && Equals(obj as TimerModule);
+
+        public override int GetHashCode() => "Timer".GetHashCode();
+
         private readonly BlockingCollection<TimerCallback> _priorityQueue =
             new BlockingCollection<TimerCallback>(new BlockingPriorityQueue<TimerCallback>());
         private readonly ISet<TimerCallback> _set = new HashSet<TimerCallback>();
@@ -19,7 +23,7 @@ namespace CloudAtlasAgent.Modules
         public TimerModule()
         {
             var sleeper = new Sleeper(_priorityQueue, _set);
-            _sleeperThread = new Thread(sleeper.Run);
+            _sleeperThread = new Thread(sleeper.Start);
             _sleeperThread.Start();
         }
 
@@ -80,10 +84,9 @@ namespace CloudAtlasAgent.Modules
             public bool Equals(TimerCallback other) =>
                 other != null && Sender.Equals(other.Sender) && RequestId == other.RequestId;
 
-            public override int GetHashCode()
-            {
-                return Sender.GetHashCode() % (RequestId + 1);
-            }
+            public override bool Equals(object? obj) => obj != null && Equals(obj as TimerCallback);
+
+            public override int GetHashCode() => Sender.GetHashCode() % (RequestId + 1);
         }
 
         private sealed class Sleeper
@@ -97,14 +100,14 @@ namespace CloudAtlasAgent.Modules
                 _set = set;
             }
 
-            public void Run()
+            public void Start()
             {
                 try
                 {
                     while (true)
                     {
                         var callback = _priorityQueue.Take();
-                        // Logger.Log($"Took {callback} out of priorityQueue");
+                        Logger.Log($"Took {callback} out of priorityQueue");
                         var toSleep = callback.Delay - DateTimeOffset.Now;
                         if (toSleep.TotalMilliseconds > 0)
                             Thread.Sleep(toSleep);  // TODO: Now it does not work
@@ -119,7 +122,7 @@ namespace CloudAtlasAgent.Modules
                 catch (ObjectDisposedException) {}
                 catch (OperationCanceledException) {}
                 catch (ThreadInterruptedException) {}
-                catch (Exception e) { Logger.LogError(e.Message); }
+                catch (Exception e) { Logger.LogException(e); }
             }
         }
     }

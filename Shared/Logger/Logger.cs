@@ -14,5 +14,9 @@ namespace Shared.Logger
             Console.WriteLine("ERROR: " + message);
             Console.WriteLine(Environment.StackTrace);
         }
+        public static void LogException(Exception e)
+        {
+            Console.WriteLine("ERROR: " + e);
+        }
     }
 }

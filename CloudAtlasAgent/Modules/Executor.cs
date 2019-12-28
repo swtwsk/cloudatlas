@@ -35,24 +35,32 @@ namespace CloudAtlasAgent.Modules
 
         public void HandleMessage(IMessage message)
         {
-            IModule module;
-            
-            switch (message)
+            if (!_modules.TryGetValue(message.Destination, out var module))
             {
-                case TimerAddCallbackMessage _:
-                case TimerRemoveCallbackMessage _:
-                    if (!_modules.TryGetValue(message.Destination, out module))
-                    {
-                        if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
-                            msgExecutor.HandleMessage(message);
-                        Logger.LogError($"Could not find handler for {message}!");
-                        return;
-                    }
-                    module.HandleMessage(message);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(message));
+                if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
+                    msgExecutor.HandleMessage(message);
+                Logger.LogError($"Could not find handler for {message}!");
+                throw new ArgumentOutOfRangeException(nameof(message));
             }
+            module.HandleMessage(message);
+            // switch (message)
+            // {
+            //     case TimerAddCallbackMessage _:
+            //     case TimerRemoveCallbackMessage _:
+            //         if (!_modules.TryGetValue(message.Destination, out module))
+            //         {
+            //             if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
+            //                 msgExecutor.HandleMessage(message);
+            //             Logger.LogError($"Could not find handler for {message}!");
+            //             return;
+            //         }
+            //         module.HandleMessage(message);
+            //         break;
+            //     case CommunicationSendMessage sendMessage:
+            //         
+            //     default:
+            //         throw new ArgumentOutOfRangeException(nameof(message));
+            // }
         }
 
         public void Dispose()

@@ -10,7 +10,7 @@ namespace Shared.Serializers
         public static CerasSerializer Serializer => new CerasSerializer(SerializerConfig);
 
         private static SerializerConfig _serializerConfig;
-        public static SerializerConfig SerializerConfig
+        private static SerializerConfig SerializerConfig
         {
             get
             {
@@ -32,6 +32,7 @@ namespace Shared.Serializers
                 _serializerConfig.ConfigType<IPAddress>().ConstructByFormatter();
                 _serializerConfig.OnResolveFormatter.Add((s, t) =>
                     t == typeof(IPAddress) ? new IPAddressFormatter() : null);
+                _serializerConfig.Advanced.DelegateSerialization = DelegateSerializationFlags.AllowStatic | DelegateSerializationFlags.AllowInstance;
 
                 return _serializerConfig;
             }
