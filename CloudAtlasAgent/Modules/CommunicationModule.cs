@@ -25,7 +25,7 @@ namespace CloudAtlasAgent.Modules
         private readonly Receiver _receiver;
         private readonly Thread _receiverThread;
 
-        public CommunicationModule(Executor executor, int maxPacketSize, IPAddress receiverAddress, int receiverPort, 
+        public CommunicationModule(IExecutor executor, int maxPacketSize, IPAddress receiverAddress, int receiverPort, 
             int receiverTimeout)
         {
             _sender = new Sender(_queue, maxPacketSize);
@@ -138,7 +138,7 @@ namespace CloudAtlasAgent.Modules
 
         private sealed class Receiver : IDisposable
         {
-            private readonly Executor _executor;
+            private readonly IExecutor _executor;
 
             private readonly IDictionary<(IPAddress address, int port, UInt32 msgId), PacketsDictionary> _bytes =
                 new Dictionary<(IPAddress address, int port, UInt32 msgId), PacketsDictionary>();
@@ -161,7 +161,7 @@ namespace CloudAtlasAgent.Modules
             
             private DateTimeOffset _nextRemoval;
             
-            public Receiver(Executor executor, int maxPacketSize, IPAddress address, int port, int receiveTimeout)
+            public Receiver(IExecutor executor, int maxPacketSize, IPAddress address, int port, int receiveTimeout)
             {
                 if (maxPacketSize <= 9)
                     throw new ArgumentException(
@@ -276,7 +276,7 @@ namespace CloudAtlasAgent.Modules
 
                 var message = _serializer.Deserialize<IMessage>(packetElements);
                 Logger.Log($"Got {message}!");
-                _executor.HandleMessage(message);
+                _executor.AddMessage(message);
             }
 
             private void ClearOld()
@@ -285,7 +285,7 @@ namespace CloudAtlasAgent.Modules
                     .Where(pair => pair.Value.removeTime <= DateTimeOffset.Now)
                     .Select(pair => pair.Key)
                     .ToList();
-                Logger.Log($"Going to remove {toRemove.Count} elements");
+                // Logger.Log($"Going to remove {toRemove.Count} elements");
                 toRemove.ForEach(tuple =>
                 {
                     _packetsInfo.Remove(tuple);

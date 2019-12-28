@@ -81,11 +81,11 @@ namespace CloudAtlasAgent
 
 			Logger.LoggerLevel = LoggerLevel.All;
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
-			TestModule();
+			TestModule(_zmi, serverPort);
 			//RunServer(serverPort).Wait();
 		}
 
-		private static void TestModule()
+		private static void TestModule(ZMI zmi, ServerPort serverPort)
 		{
 			Console.WriteLine("Test started...");
 			using var er = new ExecutorRegistry();
@@ -95,6 +95,14 @@ namespace CloudAtlasAgent
 			var timer = new TimerModule();
 			if (!e.TryAddModule(timer))
 				Console.WriteLine("Could not add TimerModule");
+			
+			var zmiModule = new ZMIModule(zmi, e);
+			if (!e.TryAddModule(zmiModule))
+				Console.WriteLine("Could not add ZMI module");
+			
+			var rmiModule = new RMIModule(e, zmiModule, serverPort);
+			if (!e.TryAddModule(rmiModule))
+				Console.WriteLine("Could not add RMI module");
 
 			var local = IPAddress.Parse("127.0.0.1");
 			
@@ -111,41 +119,41 @@ namespace CloudAtlasAgent
 				Console.WriteLine($"TEST ME ONLINE");
 			}
 
-			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
 				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
 					PrintTest), local, 1234));
-			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
 				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 6, DateTimeOffset.Now,
 					PrintTest), local, 1234));
-			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
 				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 4, DateTimeOffset.Now,
 					PrintTest), local, 1234));
 			
 			Thread.Sleep(5000);
-			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
 				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
 					PrintTest), local, 1234));
 
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 0")));
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 1, 8, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 1, 8, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 1")));
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 2, 1, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 2, 1, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 2")));
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 3, 4, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 3, 4, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 3")));
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 4, 2, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 4, 2, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 4")));
-			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 5, 4, DateTimeOffset.Now,
+			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 5, 4, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 5")));
-			// e.HandleMessage(new TimerRemoveCallbackMessage(new DummyModule(), timer, 3));
+			// e.AddMessage(new TimerRemoveCallbackMessage(new DummyModule(), timer, 3));
 
 			/*if (e.TryAddModule(timer))
 			{
 				Console.WriteLine("Could add TimerModule (sic!)");
 			}*/
 			
-			Thread.Sleep(15000);
+			Thread.Sleep(150000);
 			Console.WriteLine("End");
 		}
 

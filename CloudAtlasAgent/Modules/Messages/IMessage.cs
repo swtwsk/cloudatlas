@@ -6,13 +6,28 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         IModule Source { get; }
         IModule Destination { get; }
-        [Exclude] MessageType MessageType { get; }
+        MessageType MessageType { get; }
     }
 
+    // TODO: Is that necessary at all?
     public enum MessageType
     {
         TimerAddCallback,
         TimerRemoveCallback,
         CommunicationSend,
+        ZMIGetZones,
+        ZMIGetAttributes,
+        ZMIGetQueries,
+        ZMIInstallQuery,
+        ZMIUninstallQuery,
+        ZMISetAttribute,
+        ZMISetContacts,
+        ZMIGetZonesResponse,
+        ZMIGetAttributesResponse,
+        ZMIGetQueriesResponse,
+        ZMIInstallQueryResponse,
+        ZMIUninstallQueryResponse,
+        ZMISetAttributeResponse,
+        ZMISetContactsResponse,
     }
 }

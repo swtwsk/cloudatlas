@@ -1,20 +1,35 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Threading;
 using CloudAtlasAgent.Modules.Messages;
 using Shared.Logger;
 
 namespace CloudAtlasAgent.Modules
 {
-    public class Executor : IDisposable
+    public interface IExecutor
+    {
+        void AddMessage(IMessage message);
+    }
+    
+    public class Executor : IDisposable, IExecutor
     {
         private readonly HashSet<IModule> _modules = new HashSet<IModule>();
         private readonly ExecutorRegistry _registry;
+        
+        private readonly BlockingCollection<IMessage> _messages = new BlockingCollection<IMessage>();
+
+        private readonly Thread _executorThread; 
 
         public Executor(ExecutorRegistry registry)
         {
             _registry = registry;
             _registry.AddExecutor(this);
+            _executorThread = new Thread(HandleMessage);
+            _executorThread.Start();
         }
+        
+        public void AddMessage(IMessage message) => _messages.Add(message);
 
         public bool TryAddModule(IModule module)
         {
@@ -33,16 +48,22 @@ namespace CloudAtlasAgent.Modules
             return true;
         }
 
-        public void HandleMessage(IMessage message)
+        private void HandleMessage()
         {
-            if (!_modules.TryGetValue(message.Destination, out var module))
+            while (true)
             {
-                if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
-                    msgExecutor.HandleMessage(message);
-                Logger.LogError($"Could not find handler for {message}!");
-                throw new ArgumentOutOfRangeException(nameof(message));
+                var message = _messages.Take();
+                if (!_modules.TryGetValue(message.Destination, out var module))
+                {
+                    if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
+                        msgExecutor.AddMessage(message);
+                    Logger.LogError($"Could not find handler for {message}!");
+                    throw new ArgumentOutOfRangeException(nameof(message));
+                }
+
+                module.HandleMessage(message);
             }
-            module.HandleMessage(message);
+
             // switch (message)
             // {
             //     case TimerAddCallbackMessage _:
@@ -67,6 +88,8 @@ namespace CloudAtlasAgent.Modules
         {
             foreach (var m in _modules)
                 m.Dispose();
+            
+            _executorThread?.Interrupt();
         }
     }
 }
