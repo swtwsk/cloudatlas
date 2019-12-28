@@ -39,7 +39,8 @@ namespace CloudAtlasAgent.Modules
             
             switch (message)
             {
-                case TimerAddCallbackMessage timerAddCallbackMessage:
+                case TimerAddCallbackMessage _:
+                case TimerRemoveCallbackMessage _:
                     if (!_modules.TryGetValue(message.Destination, out module))
                     {
                         if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
@@ -47,7 +48,7 @@ namespace CloudAtlasAgent.Modules
                         Logger.LogError($"Could not find handler for {message}!");
                         return;
                     }
-                    module.HandleMessage(timerAddCallbackMessage);
+                    module.HandleMessage(message);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));

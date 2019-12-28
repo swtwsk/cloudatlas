@@ -92,16 +92,27 @@ namespace CloudAtlasAgent
 				Console.WriteLine("Could not add TimerModule");
 			}
 
-			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
-				() => Console.WriteLine("TEST ME")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 0")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 1, 8, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 1")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 2, 1, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 2")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 3, 4, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 3")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 4, 2, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 4")));
+			e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 5, 4, DateTimeOffset.Now,
+				() => Console.WriteLine("TEST ME 5")));
+			e.HandleMessage(new TimerRemoveCallbackMessage(new DummyModule(), timer, 3));
 
-			if (e.TryAddModule(timer))
+			/*if (e.TryAddModule(timer))
 			{
 				Console.WriteLine("Could add TimerModule (sic!)");
-			}
+			}*/
 			
-			Thread.Sleep(5000);
-			Console.WriteLine("Aha");
+			Thread.Sleep(15000);
+			Console.WriteLine("End");
 		}
 
 		private static async Task RunServer(ServerPort serverPort)

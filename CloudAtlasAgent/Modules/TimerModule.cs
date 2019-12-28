@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using CloudAtlasAgent.Modules.Messages;
 using Shared.Logger;
@@ -12,11 +13,12 @@ namespace CloudAtlasAgent.Modules
 
         private readonly BlockingCollection<TimerCallback> _priorityQueue =
             new BlockingCollection<TimerCallback>(new BlockingPriorityQueue<TimerCallback>());
+        private readonly ISet<TimerCallback> _set = new HashSet<TimerCallback>();
         private readonly Thread _sleeperThread;
 
         public TimerModule()
         {
-            var sleeper = new Sleeper(_priorityQueue);
+            var sleeper = new Sleeper(_priorityQueue, _set);
             _sleeperThread = new Thread(sleeper.Run);
             _sleeperThread.Start();
         }
@@ -26,10 +28,12 @@ namespace CloudAtlasAgent.Modules
             switch (message)
             {
                 case TimerAddCallbackMessage timerAddCallbackMessage:
-                    _priorityQueue.TryAdd(new TimerCallback(
-                        DateTimeOffset.Now.Add(timerAddCallbackMessage.TimeFrom - DateTimeOffset.Now +
-                                               TimeSpan.FromSeconds(timerAddCallbackMessage.Delay)),
-                        timerAddCallbackMessage.Callback));
+                    _priorityQueue.TryAdd(new TimerCallback(timerAddCallbackMessage));
+                    break;
+                case TimerRemoveCallbackMessage timerRemoveCallbackMessage:
+                    lock (_set)
+                        _set.Add(new TimerCallback(new DateTimeOffset(), timerRemoveCallbackMessage.Source,
+                            timerRemoveCallbackMessage.RequestId, null));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));
@@ -42,15 +46,24 @@ namespace CloudAtlasAgent.Modules
             _priorityQueue?.Dispose();
         }
 
-        // TODO: Better the implementation, this to be sure
         private sealed class TimerCallback : IComparable, IComparable<TimerCallback>, IEquatable<TimerCallback>
         {
             public DateTimeOffset Delay { get; }
             public Action Callback { get; }
+            private IModule Sender { get; }
+            private int RequestId { get; }
 
-            public TimerCallback(DateTimeOffset delay, Action callback)
+            public TimerCallback(TimerAddCallbackMessage message) : this(
+                DateTimeOffset.Now.Add(message.TimeFrom - DateTimeOffset.Now + TimeSpan.FromSeconds(message.Delay)),
+                message.Source,
+                message.RequestId,
+                message.Callback) {}
+
+            public TimerCallback(DateTimeOffset delay, IModule sender, int requestId, Action callback)
             {
                 Delay = delay;
+                Sender = sender;
+                RequestId = requestId;
                 Callback = callback;
             }
 
@@ -64,13 +77,25 @@ namespace CloudAtlasAgent.Modules
             
             public int CompareTo(TimerCallback other) => other == null ? 1 : Delay.CompareTo(other.Delay);
 
-            public bool Equals(TimerCallback other) => other != null && ReferenceEquals(this, other);
+            public bool Equals(TimerCallback other) =>
+                other != null && Sender.Equals(other.Sender) && RequestId == other.RequestId;
+
+            public override int GetHashCode()
+            {
+                return Sender.GetHashCode() % (RequestId + 1);
+            }
         }
 
         private sealed class Sleeper
         {
             private readonly BlockingCollection<TimerCallback> _priorityQueue;
-            public Sleeper(BlockingCollection<TimerCallback> priorityQueue) => _priorityQueue = priorityQueue;
+            private readonly ISet<TimerCallback> _set;
+
+            public Sleeper(BlockingCollection<TimerCallback> priorityQueue, ISet<TimerCallback> set)
+            {
+                _priorityQueue = priorityQueue;
+                _set = set;
+            }
 
             public void Run()
             {
@@ -78,19 +103,22 @@ namespace CloudAtlasAgent.Modules
                 {
                     while (true)
                     {
-                        Logger.Log("NO ELO Z SLEEPERA");
                         var callback = _priorityQueue.Take();
-                        Logger.Log($"Took {callback} out of priorityQueue");
+                        // Logger.Log($"Took {callback} out of priorityQueue");
                         var toSleep = callback.Delay - DateTimeOffset.Now;
                         if (toSleep.TotalMilliseconds > 0)
-                            Thread.Sleep(toSleep);
-                        Logger.Log("Sleepy sleeped");
+                            Thread.Sleep(toSleep);  // TODO: Now it does not work
+                        lock (_set)
+                        {
+                            if (_set.Remove(callback))
+                                continue;
+                        }
                         callback.Callback();
                     }
                 }
                 catch (ObjectDisposedException) {}
                 catch (OperationCanceledException) {}
-                catch (ThreadInterruptedException) { Logger.LogError("Interrupted"); }
+                catch (ThreadInterruptedException) {}
                 catch (Exception e) { Logger.LogError(e.Message); }
             }
         }
