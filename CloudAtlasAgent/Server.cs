@@ -103,13 +103,19 @@ namespace CloudAtlasAgent
 			if (!e2.TryAddModule(communication2))
 				Console.WriteLine("Could not add Communication 2");
 
-			static void PrintTest()
+			void PrintTest()
 			{
-				Console.WriteLine("TEST ME ONLINE");
+				Console.WriteLine($"TEST ME ONLINE");
 			}
 
 			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
-				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
+				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
+					PrintTest), local, 1234));
+			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 6, DateTimeOffset.Now,
+					PrintTest), local, 1234));
+			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 4, DateTimeOffset.Now,
 					PrintTest), local, 1234));
 
 			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,

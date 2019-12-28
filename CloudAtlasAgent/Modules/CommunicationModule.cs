@@ -13,6 +13,7 @@ using Shared.Serializers;
 namespace CloudAtlasAgent.Modules
 {
     using SendQueue = BlockingCollection<CommunicationSendMessage>;
+    using PacketsDictionary = SortedDictionary<Int32, byte[]>;
     
     public sealed class CommunicationModule : IModule
     {
@@ -62,20 +63,21 @@ namespace CloudAtlasAgent.Modules
         {
             private readonly SendQueue _queue;
             private readonly int _maxPacketSize;
-            private int MaxSerializedSize => _maxPacketSize - 5;
+            private int MaxSerializedSize => _maxPacketSize - 9;
             private byte[] _buffer;
             private byte[] _sendBuffer;
             private readonly CerasSerializer _serializer = CustomSerializer.Serializer;
 
             private readonly Socket _socket;
+            private uint msgId = 0;
 
             public Sender(SendQueue queue, int maxPacketSize)
             {
                 _queue = queue;
 
-                if (maxPacketSize <= 5)
+                if (maxPacketSize <= 9)
                     throw new ArgumentException(
-                        $"Size of the packet must be greater than 5 bytes, but it is equal to {maxPacketSize}");
+                        $"Size of the packet must be greater than 9 bytes, but it is equal to {maxPacketSize}");
                 
                 _maxPacketSize = maxPacketSize;
                 _sendBuffer = new byte[_maxPacketSize];
@@ -102,10 +104,8 @@ namespace CloudAtlasAgent.Modules
 
             private void SendMessage(CommunicationSendMessage message)
             {
-                UInt32 packetNumber = 1U;
+                Int32 packetNumber = 1;
                 
-                _socket.Connect(message.Address, message.Port);
-
                 var length = _serializer.Serialize(message.MessageToSend, ref _buffer);
                 var currentPos = 0;
 
@@ -113,15 +113,22 @@ namespace CloudAtlasAgent.Modules
                 {
                     _sendBuffer[0] = (byte) (length - currentPos <= MaxSerializedSize ? 0 : 1);
                     var bytePacketNumber =
-                        BitConverter.GetBytes((UInt32) IPAddress.HostToNetworkOrder((Int32) packetNumber));
+                        BitConverter.GetBytes(IPAddress.HostToNetworkOrder(packetNumber));
                     Array.Copy(bytePacketNumber, 0, _sendBuffer, 1, 4);
 
-                    Array.Copy(_buffer, currentPos, _sendBuffer, 5, MaxSerializedSize);
-                    _socket.Send(_sendBuffer, _maxPacketSize, 0);
+                    var byteMessageNumber = BitConverter.GetBytes((UInt32) IPAddress.HostToNetworkOrder((Int32) msgId));
+                    Array.Copy(byteMessageNumber, 0, _sendBuffer, 5, 4);
+                    
+                    Logger.Log($"Sent {packetNumber} from message {msgId}");
+
+                    Array.Copy(_buffer, currentPos, _sendBuffer, 9, MaxSerializedSize);
+                    _socket.SendTo(_sendBuffer, _maxPacketSize, 0, new IPEndPoint(message.Address, message.Port));
                     
                     currentPos += MaxSerializedSize;
                     packetNumber++;
                 }
+
+                msgId++;
                 
                 Logger.Log("Message sent");
             }
@@ -135,10 +142,18 @@ namespace CloudAtlasAgent.Modules
         private sealed class Receiver : IDisposable
         {
             private readonly Executor _executor;
+
+            private readonly IDictionary<(IPAddress address, int port, UInt32 msgId), PacketsDictionary> _bytes =
+                new Dictionary<(IPAddress address, int port, UInt32 msgId), PacketsDictionary>();
+
+            private readonly IDictionary<
+                (IPAddress address, int port, UInt32 msgId),
+                (Int32 lastPacket, HashSet<Int32> received, HashSet<Int32> toReceive)
+            > _packetsInfo =
+                new Dictionary<(IPAddress address, int port, UInt32 msgId), (Int32, HashSet<Int32>, HashSet<Int32>)>();
             
-            private SortedDictionary<uint, byte[]> _bytes = new SortedDictionary<uint, byte[]>();
             private readonly int _maxPacketSize;
-            private int MaxSerializedSize => _maxPacketSize - 5;
+            private int MaxSerializedSize => _maxPacketSize - 9;
             private readonly CerasSerializer _serializer = CustomSerializer.Serializer;
             private byte[] _buffer;
 
@@ -149,9 +164,9 @@ namespace CloudAtlasAgent.Modules
             
             public Receiver(Executor executor, int maxPacketSize, IPAddress address, int port, int receiveTimeout)
             {
-                if (maxPacketSize <= 5)
+                if (maxPacketSize <= 9)
                     throw new ArgumentException(
-                        $"Size of the packet must be greater than 5 bytes, but it is equal to {maxPacketSize}");
+                        $"Size of the packet must be greater than 9 bytes, but it is equal to {maxPacketSize}");
 
                 _executor = executor;
                 _maxPacketSize = maxPacketSize;
@@ -177,10 +192,7 @@ namespace CloudAtlasAgent.Modules
             {
                 try
                 {
-                    while (true)
-                    {
-                        Receive();
-                    }
+                    Receive();
                 }
                 catch (ThreadInterruptedException) {}
                 catch (SocketException se)
@@ -196,52 +208,67 @@ namespace CloudAtlasAgent.Modules
             }
             
             private readonly byte[] _packetIdBytes = new byte[4];
+            private readonly byte[] _msgIdBytes = new byte[4];
 
             private void Receive()
             {
-                var endTransmission = false;
-
-                ulong receivedSum = 0;
-                ulong sumToReceive = 0;
-                UInt32 lastPacketId = 0;
-
-                var socketTimeoutSet = false;
-                _socket.ReceiveTimeout = 0;  // infinite
-
-                // TODO: Add timeout!
-                while (!endTransmission)
+                while (true)
                 {
-                    var bytesRec = _socket.Receive(_buffer);
-                    if (!socketTimeoutSet)
+                    EndPoint remoteEnd = new IPEndPoint(IPAddress.Any, 0);
+                    var flags = SocketFlags.None;
+
+                    var bytesRec = _socket.ReceiveMessageFrom(_buffer, 0, _buffer.Length, ref flags, ref remoteEnd,
+                        out var packetInfo);
+
+                    Array.Copy(_buffer, 5, _msgIdBytes, 0, 4);
+                    var msgId = (UInt32) IPAddress.NetworkToHostOrder((Int32) BitConverter.ToUInt32(_msgIdBytes));
+                    var addressTuple = (packetInfo.Address, ((IPEndPoint) remoteEnd).Port, msgId);
+                    if (!_bytes.TryGetValue(addressTuple, out var endPointDict))
                     {
-                        _socket.ReceiveTimeout = _receiveTimeout;
-                        socketTimeoutSet = true;
+                        endPointDict = new PacketsDictionary();
+                        _bytes.Add(addressTuple, endPointDict);
                     }
 
                     var end = _buffer[0] == 0;
-                    Array.Copy(_buffer, 1, _packetIdBytes, 0, 4);
-                    var packetId = (UInt32) IPAddress.NetworkToHostOrder((Int32) BitConverter.ToUInt32(_packetIdBytes));
-                    receivedSum += packetId;
 
-                    if (!_bytes.TryGetValue(packetId, out var packetBytes))
+                    Array.Copy(_buffer, 1, _packetIdBytes, 0, 4);
+                    var packetId = IPAddress.NetworkToHostOrder((Int32) BitConverter.ToUInt32(_packetIdBytes));
+                    
+                    if (!endPointDict.TryGetValue(packetId, out var packetBytes))
                     {
                         packetBytes = new byte[MaxSerializedSize];
-                        _bytes.Add(packetId, packetBytes);
+                        endPointDict.Add(packetId, packetBytes);
                     }
 
-                    Array.Copy(_buffer, 5, packetBytes, 0, bytesRec - 5);
+                    Array.Copy(_buffer, 9, packetBytes, 0, bytesRec - 9);
 
-                    if (end)
+                    if (!_packetsInfo.TryGetValue(addressTuple, out var tuple))
                     {
-                        sumToReceive = packetId * (packetId + 1) / 2;
-                        lastPacketId = packetId;
+                        tuple = (end ? packetId : 0, new HashSet<int> {packetId}, end ? new HashSet<int>(Enumerable.Range(1, packetId)) : null);
+                        _packetsInfo.Add(addressTuple, tuple);
+                    }
+                    else if (tuple.lastPacket == 0 && end)
+                    {
+                        tuple.received.Add(packetId);
+                        tuple = (packetId, tuple.received, new HashSet<int>(Enumerable.Range(1, packetId)));
+                    }
+                    else
+                    {
+                        tuple.received.Add(packetId);
                     }
 
-                    endTransmission = sumToReceive != 0 && receivedSum == sumToReceive;
-                    Logger.Log($"{endTransmission}, {receivedSum} == {sumToReceive}");
+                    if (tuple.lastPacket != 0 && tuple.toReceive.SetEquals(tuple.received))
+                    {
+                        PassMessageAtEnd(endPointDict, tuple.lastPacket);
+                        _bytes.Remove(addressTuple);
+                        _packetsInfo.Remove(addressTuple);
+                    }
                 }
+            }
 
-                var packetElements = _bytes
+            private void PassMessageAtEnd(PacketsDictionary dictionary, int lastPacketId)
+            {
+                var packetElements = dictionary
                     .Where(pair => pair.Key <= lastPacketId)
                     .SelectMany(pair => pair.Value)
                     .ToArray();
