@@ -10,6 +10,7 @@ using CloudAtlasAgent.Modules.Messages;
 using CommandLine;
 using Grpc.Core;
 using Shared;
+using Shared.Logger;
 using Shared.Model;
 using Shared.Parsers;
 using Shared.RPC;
@@ -77,7 +78,9 @@ namespace CloudAtlasAgent
 						Console.WriteLine($"OPTIONS PARSE ERROR: {err}");
 					Environment.Exit(1);
 				});
-			
+
+			Logger.LoggerLevel = LoggerLevel.All;
+			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 			TestModule();
 			//RunServer(serverPort).Wait();
 		}
@@ -95,11 +98,11 @@ namespace CloudAtlasAgent
 
 			var local = IPAddress.Parse("127.0.0.1");
 			
-			var communication1 = new CommunicationModule(e, 100, local, 1234, 3000);
+			var communication1 = new CommunicationModule(e, 100, local, 1234, 5000);
 			if (!e.TryAddModule(communication1))
 				Console.WriteLine("Could not add Communication 1");
 			
-			var communication2 = new CommunicationModule(e2, 100, local, 1235, 3000);
+			var communication2 = new CommunicationModule(e2, 100, local, 1235, 5000);
 			if (!e2.TryAddModule(communication2))
 				Console.WriteLine("Could not add Communication 2");
 
@@ -116,6 +119,11 @@ namespace CloudAtlasAgent
 					PrintTest), local, 1234));
 			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
 				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 4, DateTimeOffset.Now,
+					PrintTest), local, 1234));
+			
+			Thread.Sleep(5000);
+			e2.HandleMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
 					PrintTest), local, 1234));
 
 			// e.HandleMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,

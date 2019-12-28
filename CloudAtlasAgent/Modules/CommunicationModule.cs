@@ -52,7 +52,9 @@ namespace CloudAtlasAgent.Modules
         {
             _queue?.Dispose();
             _senderThread?.Interrupt();
+            _sender.Dispose();
             _receiverThread?.Interrupt();
+            _receiver.Dispose();
         }
 
         public bool Equals(IModule other) => other is CommunicationModule;
@@ -68,7 +70,6 @@ namespace CloudAtlasAgent.Modules
             private byte[] _sendBuffer;
             private readonly CerasSerializer _serializer = CustomSerializer.Serializer;
 
-            private readonly Socket _socket;
             private uint msgId = 0;
 
             public Sender(SendQueue queue, int maxPacketSize)
@@ -81,8 +82,6 @@ namespace CloudAtlasAgent.Modules
                 
                 _maxPacketSize = maxPacketSize;
                 _sendBuffer = new byte[_maxPacketSize];
-                
-                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
             }
             
             public void Start()
@@ -91,9 +90,10 @@ namespace CloudAtlasAgent.Modules
                 {
                     while (true)
                     {
+                        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
                         var message = _queue.Take();
                         Logger.Log($"Took {message} out of queue");
-                        SendMessage(message);
+                        SendMessage(message, socket);
                     }
                 }
                 catch (ObjectDisposedException) {}
@@ -102,7 +102,7 @@ namespace CloudAtlasAgent.Modules
                 catch (Exception e) { Logger.LogException(e); }
             }
 
-            private void SendMessage(CommunicationSendMessage message)
+            private void SendMessage(CommunicationSendMessage message, Socket socket)
             {
                 Int32 packetNumber = 1;
                 
@@ -119,10 +119,8 @@ namespace CloudAtlasAgent.Modules
                     var byteMessageNumber = BitConverter.GetBytes((UInt32) IPAddress.HostToNetworkOrder((Int32) msgId));
                     Array.Copy(byteMessageNumber, 0, _sendBuffer, 5, 4);
                     
-                    Logger.Log($"Sent {packetNumber} from message {msgId}");
-
                     Array.Copy(_buffer, currentPos, _sendBuffer, 9, MaxSerializedSize);
-                    _socket.SendTo(_sendBuffer, _maxPacketSize, 0, new IPEndPoint(message.Address, message.Port));
+                    socket.SendTo(_sendBuffer, _maxPacketSize, 0, new IPEndPoint(message.Address, message.Port));
                     
                     currentPos += MaxSerializedSize;
                     packetNumber++;
@@ -135,7 +133,6 @@ namespace CloudAtlasAgent.Modules
 
             public void Dispose()
             {
-                _socket?.Dispose();
             }
         }
 
@@ -148,9 +145,9 @@ namespace CloudAtlasAgent.Modules
 
             private readonly IDictionary<
                 (IPAddress address, int port, UInt32 msgId),
-                (Int32 lastPacket, HashSet<Int32> received, HashSet<Int32> toReceive)
+                (Int32 lastPacket, HashSet<Int32> received, HashSet<Int32> toReceive, DateTimeOffset removeTime)
             > _packetsInfo =
-                new Dictionary<(IPAddress address, int port, UInt32 msgId), (Int32, HashSet<Int32>, HashSet<Int32>)>();
+                new Dictionary<(IPAddress address, int port, UInt32 msgId), (Int32, HashSet<Int32>, HashSet<Int32>, DateTimeOffset)>();
             
             private readonly int _maxPacketSize;
             private int MaxSerializedSize => _maxPacketSize - 9;
@@ -161,6 +158,8 @@ namespace CloudAtlasAgent.Modules
             private readonly IPAddress _ipAddress;
             private readonly int _port;
             private readonly int _receiveTimeout;
+            
+            private DateTimeOffset _nextRemoval;
             
             public Receiver(Executor executor, int maxPacketSize, IPAddress address, int port, int receiveTimeout)
             {
@@ -174,34 +173,33 @@ namespace CloudAtlasAgent.Modules
                 _ipAddress = address;
                 _port = port;
                 _receiveTimeout = receiveTimeout;
-
-                ResetSocket();
+                _nextRemoval = DateTimeOffset.Now.AddMilliseconds(receiveTimeout);
             }
 
-            private void ResetSocket()
-            {
-                _socket?.Dispose();
-                _socket = null;
-                
-                _socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                _socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
-                _socket.Bind(new IPEndPoint(_ipAddress, _port));
-            }
-            
             public void Start()
             {
                 try
                 {
-                    Receive();
+                    using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                    _socket = socket;
+                    socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
+                    socket.ReceiveTimeout = _receiveTimeout;
+                    socket.Bind(new IPEndPoint(_ipAddress, _port));
+                    Receive(socket);
                 }
                 catch (ThreadInterruptedException) {}
                 catch (SocketException se)
                 {
-                    Logger.LogException(se);
-                    if (!Thread.CurrentThread.IsAlive)
+                    if (se.SocketErrorCode == SocketError.Interrupted)
+                    {
+                        _socket?.Dispose();
                         return;
-                    
-                    ResetSocket();
+                    }
+
+                    if (se.SocketErrorCode != SocketError.TimedOut)
+                        Logger.LogException(se);
+
+                    ClearOld();
                     Start();  // TODO: High probability of StackOverflow + this finally doesn't look good
                 }
                 catch (Exception e) { Logger.LogException(e); }
@@ -210,16 +208,16 @@ namespace CloudAtlasAgent.Modules
             private readonly byte[] _packetIdBytes = new byte[4];
             private readonly byte[] _msgIdBytes = new byte[4];
 
-            private void Receive()
+            private void Receive(Socket socket)
             {
                 while (true)
                 {
                     EndPoint remoteEnd = new IPEndPoint(IPAddress.Any, 0);
                     var flags = SocketFlags.None;
 
-                    var bytesRec = _socket.ReceiveMessageFrom(_buffer, 0, _buffer.Length, ref flags, ref remoteEnd,
+                    var bytesRec = socket.ReceiveMessageFrom(_buffer, 0, _buffer.Length, ref flags, ref remoteEnd,
                         out var packetInfo);
-
+                    
                     Array.Copy(_buffer, 5, _msgIdBytes, 0, 4);
                     var msgId = (UInt32) IPAddress.NetworkToHostOrder((Int32) BitConverter.ToUInt32(_msgIdBytes));
                     var addressTuple = (packetInfo.Address, ((IPEndPoint) remoteEnd).Port, msgId);
@@ -244,13 +242,13 @@ namespace CloudAtlasAgent.Modules
 
                     if (!_packetsInfo.TryGetValue(addressTuple, out var tuple))
                     {
-                        tuple = (end ? packetId : 0, new HashSet<int> {packetId}, end ? new HashSet<int>(Enumerable.Range(1, packetId)) : null);
+                        tuple = (end ? packetId : 0, new HashSet<int> {packetId}, end ? new HashSet<int>(Enumerable.Range(1, packetId)) : null, DateTimeOffset.Now.AddMilliseconds(_receiveTimeout));
                         _packetsInfo.Add(addressTuple, tuple);
                     }
                     else if (tuple.lastPacket == 0 && end)
                     {
                         tuple.received.Add(packetId);
-                        tuple = (packetId, tuple.received, new HashSet<int>(Enumerable.Range(1, packetId)));
+                        tuple = (packetId, tuple.received, new HashSet<int>(Enumerable.Range(1, packetId)), tuple.removeTime);
                     }
                     else
                     {
@@ -263,6 +261,9 @@ namespace CloudAtlasAgent.Modules
                         _bytes.Remove(addressTuple);
                         _packetsInfo.Remove(addressTuple);
                     }
+                    
+                    if (_nextRemoval <= DateTimeOffset.Now)
+                        ClearOld();
                 }
             }
 
@@ -278,10 +279,24 @@ namespace CloudAtlasAgent.Modules
                 _executor.HandleMessage(message);
             }
 
+            private void ClearOld()
+            {
+                var toRemove = _packetsInfo
+                    .Where(pair => pair.Value.removeTime <= DateTimeOffset.Now)
+                    .Select(pair => pair.Key)
+                    .ToList();
+                Logger.Log($"Going to remove {toRemove.Count} elements");
+                toRemove.ForEach(tuple =>
+                {
+                    _packetsInfo.Remove(tuple);
+                    _bytes.Remove(tuple);
+                });
+                _nextRemoval = DateTimeOffset.Now.AddMilliseconds(_receiveTimeout);
+            }
+
             public void Dispose()
             {
-                _socket?.Dispose();
-                _socket = null;
+                _socket?.Close(3);
             }
         }
     }
