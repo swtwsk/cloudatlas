@@ -39,96 +39,95 @@ namespace CloudAtlasAgent.Modules
                     ServerServiceDefinition.CreateBuilder()
                         .AddMethod(AgentMethods.GetZones, GetZones)
                         .AddMethod(AgentMethods.GetAttributes, GetAttributes)
+                        .AddMethod(AgentMethods.GetQueries, GetQueries)
+                        .AddMethod(AgentMethods.InstallQuery, InstallQuery)
+                        .AddMethod(AgentMethods.UninstallQuery, UninstallQuery)
+                        .AddMethod(AgentMethods.SetAttribute, SetAttribute)
+                        .AddMethod(AgentMethods.SetContacts, SetContacts)
                         .Build()
                 }
             };
             _serverThread = new Thread(_server.Start);
             _serverThread.Start();
-            Console.WriteLine($"{_server}");
-            // _serverTask = RunServer(serverPort);
-            // _serverTask.Start();
         }
 
         public void Dispose()
         {
             _serverThread?.Interrupt();
             _server?.ShutdownAsync();
-            // _serverTask?.Dispose();
         }
-        
-        private async Task RunServer(ServerPort serverPort)
-        {
-            var server = new Grpc.Core.Server
-            {
-                Ports = {serverPort},
-                Services =
-                {
-                    ServerServiceDefinition.CreateBuilder()
-                        .AddMethod(AgentMethods.GetZones, GetZones)
-                        .AddMethod(AgentMethods.GetAttributes, GetAttributes)
-                        // .AddMethod(AgentMethods.GetQueries, GetQueries)
-                        // .AddMethod(AgentMethods.InstallQuery, InstallQuery)
-                        // .AddMethod(AgentMethods.UninstallQuery, UninstallQuery)
-                        // .AddMethod(AgentMethods.SetAttribute, SetAttribute)
-                        // .AddMethod(AgentMethods.SetContacts, SetContacts)
-                        .Build()
-                }
-            };
 
-            server.Start();
-            Console.WriteLine($"Server started under [{serverPort.Host}:{serverPort.Port}]. Press Enter to stop it...");
-            Console.ReadLine();  // TODO: Make it better XD
-
-            await server.ShutdownAsync();
-        }
-        
         private Task<HashSet<string>> GetZones(Empty _, ServerCallContext ctx)
         {
             Logger.Log("GetZones");
-            
-            var requestMsg = new GetZonesRequestMessage(this, _zmiModule);
-            _executor.AddMessage(requestMsg);
-
-            IMessage responseMessage;
-
-            lock (_dictLock)
-            {
-                while (!_dictionary.TryGetValue(requestMsg, out responseMessage))
-                    Monitor.Wait(_dictLock);
-            }
-
-            if (!(responseMessage is GetZonesResponseMessage getZonesResponseMessage))
-            {
-                Logger.LogError("Return message is not a GetZonesResponseMessage");
-                return Task.FromResult(new HashSet<string>());
-            }
-            
-            return Task.FromResult(getZonesResponseMessage.Response);
+            return ProcessTask<HashSet<string>, GetZonesRequestMessage, GetZonesResponseMessage>(
+	            new GetZonesRequestMessage(this, _zmiModule));
         }
 
         private Task<AttributesMap> GetAttributes(string pathName, ServerCallContext ctx)
         {
             Logger.Log($"GetAttributes({pathName})");
-            
-            var requestMsg = new GetAttributesRequestMessage(this, _zmiModule, pathName);
-            _executor.AddMessage(requestMsg);
-
-            IMessage responseMessage;
-
-            lock (_dictLock)
-            {
-                while (!_dictionary.TryGetValue(requestMsg, out responseMessage))
-                    Monitor.Wait(_dictLock);
-            }
-
-            if (!(responseMessage is GetAttributesResponseMessage getAttributesResponseMessage))
-            {
-                Logger.LogError("Return message is not a GetZonesResponseMessage");
-                return Task.FromResult(new AttributesMap());
-            }
-            
-            return Task.FromResult(getAttributesResponseMessage.Response);
+            return ProcessTask<AttributesMap, GetAttributesRequestMessage, GetAttributesResponseMessage>(
+	            new GetAttributesRequestMessage(this, _zmiModule, pathName));
         }
+
+        private Task<HashSet<string>> GetQueries(Empty _, ServerCallContext ctx)
+		{
+			Logger.Log($"GetQueries");
+			return ProcessTask<HashSet<string>, GetQueriesRequestMessage, GetQueriesResponseMessage>(
+				new GetQueriesRequestMessage(this, _zmiModule));
+		}
+
+		private Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
+		{
+			Logger.Log($"InstallQuery({query})");
+			return ProcessTask<RefStruct<bool>, InstallQueryRequestMessage, InstallQueryResponseMessage>(
+				new InstallQueryRequestMessage(this, _zmiModule, query));
+		}
+
+		private Task<RefStruct<bool>> UninstallQuery(string queryName, ServerCallContext ctx)
+		{
+			Logger.Log($"UninstallQuery({queryName})");
+			return ProcessTask<RefStruct<bool>, UninstallQueryRequestMessage, UninstallQueryResponseMessage>(
+				new UninstallQueryRequestMessage(this, _zmiModule, queryName));
+		}
+
+		private Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)
+		{
+			Logger.Log($"SetAttribute({attributeMessage})");
+			return ProcessTask<RefStruct<bool>, SetAttributeRequestMessage, SetAttributeResponseMessage>(
+				new SetAttributeRequestMessage(this, _zmiModule, attributeMessage));
+		}
+
+		private Task<RefStruct<bool>> SetContacts(ValueSet contacts, ServerCallContext ctx)
+		{
+			return ProcessTask<RefStruct<bool>, SetContactsRequestMessage, SetContactsResponseMessage>(
+				new SetContactsRequestMessage(this, _zmiModule, contacts));
+		}
+		
+		private Task<T> ProcessTask<T, TReq, TRes>(TReq requestMsg)
+			where T : class
+			where TReq : IZMIRequestMessage
+			where TRes : IZMIResponseMessage<T>
+		{
+			_executor.AddMessage(requestMsg);
+
+			IMessage responseMessage;
+
+			lock (_dictLock)
+			{
+				while (!_dictionary.TryGetValue(requestMsg, out responseMessage))
+					Monitor.Wait(_dictLock);
+			}
+
+			if (!(responseMessage is TRes responseWrapper))
+			{
+				Logger.LogError("Return message is not a GetQueriesResponseMessage");
+				return Task.FromResult(default(T));
+			}
+	        
+			return Task.FromResult(responseWrapper.Response);
+		}
 
         public void HandleMessage(IMessage message)
         {

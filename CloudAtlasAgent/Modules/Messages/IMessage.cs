@@ -6,7 +6,7 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         IModule Source { get; }
         IModule Destination { get; }
-        MessageType MessageType { get; }
+        [Exclude] MessageType MessageType { get; }
     }
 
     // TODO: Is that necessary at all?
