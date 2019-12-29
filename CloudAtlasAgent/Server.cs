@@ -40,6 +40,12 @@ namespace CloudAtlasAgent
 			
 			[Option('l', "log", Default = false, HelpText = "Enable logging of incoming RMIs")]
 			public bool Log { get; set; }
+			
+			[Option('d', Default = "127.0.0.1", HelpText = "Destination hostname of test message")]
+			public string DestName { get; set; }
+			
+			[Option('f', Default = 1234, HelpText = "Destination port of test message")]
+			public int DestPort { get; set; }
 		}
 
 		private static bool TryParseConfig(string pathToConfig, out ZMI zmi)
@@ -63,6 +69,7 @@ namespace CloudAtlasAgent
 		public static void Main(string[] args)
 		{
 			ServerPort serverPort = null;
+			var pair = (string.Empty, -1);
 			
 			Parser.Default.ParseArguments<Options>(args)
 				.WithParsed(opts =>
@@ -70,6 +77,7 @@ namespace CloudAtlasAgent
 					if (!TryParseConfig(opts.ConfigFile, out _zmi))
 						Environment.Exit(1);
 					serverPort = new ServerPort(opts.HostName.Trim(' '), opts.PortNumber, ServerCredentials.Insecure);
+					pair = (opts.DestName.Trim(' '), opts.DestPort);
 					_log = opts.Log;
 				})
 				.WithNotParsed(errs =>
@@ -81,11 +89,11 @@ namespace CloudAtlasAgent
 
 			Logger.LoggerLevel = LoggerLevel.All;
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
-			TestModule(_zmi, serverPort);
+			TestModule(_zmi, serverPort, pair);
 			//RunServer(serverPort).Wait();
 		}
 
-		private static void TestModule(ZMI zmi, ServerPort serverPort)
+		private static void TestModule(ZMI zmi, ServerPort serverPort, (string, int) destPair)
 		{
 			Console.WriteLine("Test started...");
 			using var er = new ExecutorRegistry();
@@ -110,29 +118,44 @@ namespace CloudAtlasAgent
 			if (!e.TryAddModule(communication1))
 				Console.WriteLine("Could not add Communication 1");
 			
-			var communication2 = new CommunicationModule(e2, 100, local, 1235, 5000);
-			if (!e2.TryAddModule(communication2))
-				Console.WriteLine("Could not add Communication 2");
+			// var communication2 = new CommunicationModule(e2, 100, local, 1235, 5000);
+			// if (!e2.TryAddModule(communication2))
+			// 	Console.WriteLine("Could not add Communication 2");
 
 			void PrintTest()
 			{
 				Console.WriteLine($"TEST ME ONLINE");
 			}
 
-			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
-				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
-					PrintTest), local, 1234));
-			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
-				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 6, DateTimeOffset.Now,
-					PrintTest), local, 1234));
-			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
-				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 4, DateTimeOffset.Now,
-					PrintTest), local, 1234));
+			void AddMessage()
+			{
+				e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 10, DateTimeOffset.Now, 
+					AddMessage));
+				e.AddMessage(new CommunicationSendMessage(new DummyModule(), communication1,
+					new TimerAddCallbackMessage(
+						new DummyModule(), timer, 0, 10, DateTimeOffset.Now, PrintTest),
+					IPAddress.Parse(destPair.Item1), destPair.Item2));
+			}
 			
-			Thread.Sleep(5000);
-			e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
-				new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
-					PrintTest), local, 1234));
+			e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 1, DateTimeOffset.Now, 
+				AddMessage));
+			
+			// e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			// 	new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
+			// 		PrintTest), local, 1234));
+			// e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			// 	new TimerAddCallbackMessage(new DummyModule(), timer, 0, 6, DateTimeOffset.Now,
+			// 		PrintTest), local, 1234));
+			// e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			// 	new TimerAddCallbackMessage(new DummyModule(), timer, 0, 4, DateTimeOffset.Now,
+			// 		PrintTest), local, 1234));
+			//
+			// Thread.Sleep(5000);
+			// e2.AddMessage(new CommunicationSendMessage(new DummyModule(), communication2,
+			// 	new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
+			// 		PrintTest), local, 1234));
+			
+			
 
 			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 0")));
