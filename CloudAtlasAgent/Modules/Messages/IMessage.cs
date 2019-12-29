@@ -14,7 +14,13 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         TimerAddCallback,
         TimerRemoveCallback,
+        
         CommunicationSend,
+        
+        GossipStart,
+        GossipAsk,
+        GossipResponse,
+        
         ZMIGetZones,
         ZMIGetAttributes,
         ZMIGetQueries,

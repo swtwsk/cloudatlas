@@ -25,6 +25,8 @@ namespace CloudAtlasAgent.Modules
         private readonly Receiver _receiver;
         private readonly Thread _receiverThread;
 
+        private CommunicationModule() {}
+
         public CommunicationModule(IExecutor executor, int maxPacketSize, IPAddress receiverAddress, int receiverPort, 
             int receiverTimeout)
         {
@@ -37,6 +39,9 @@ namespace CloudAtlasAgent.Modules
             _senderThread.Start();
             _receiverThread.Start();
         }
+
+        private CommunicationModule _voidInstance;
+        public IModule VoidInstance => _voidInstance ??= new CommunicationModule();
 
         public void HandleMessage(IMessage message)
         {
@@ -128,7 +133,7 @@ namespace CloudAtlasAgent.Modules
 
                 msgId++;
                 
-                Logger.Log("Message sent");
+                Logger.Log($"Message {message.MessageToSend} sent to {message.Address} at port {message.Port}");
             }
 
             public void Dispose()

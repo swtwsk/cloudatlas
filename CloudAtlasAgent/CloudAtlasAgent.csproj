@@ -16,8 +16,14 @@
     </ItemGroup>
     
     <ItemGroup>
+        <Content Include="oldZmis.txt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
         <Content Include="zmis.txt">
             <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+        </Content>
+        <Content Include="zmis2.txt">
+          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
         </Content>
     </ItemGroup>
 

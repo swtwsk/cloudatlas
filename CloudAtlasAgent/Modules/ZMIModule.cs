@@ -23,6 +23,11 @@ namespace CloudAtlasAgent.Modules
             _zmi = zmi;
             _executor = executor;
         }
+        
+        private ZMIModule() {}
+        
+        private ZMIModule _voidInstance;
+        public IModule VoidInstance => _voidInstance ??= new ZMIModule();
 
         public bool Equals(IModule other) => other is ZMIModule;
         public override bool Equals(object? obj) => obj != null && Equals(obj as ZMIModule);

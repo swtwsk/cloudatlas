@@ -19,7 +19,7 @@ namespace CloudAtlasAgent.Modules
         
         private readonly BlockingCollection<IMessage> _messages = new BlockingCollection<IMessage>();
 
-        private readonly Thread _executorThread; 
+        private readonly Thread _executorThread;
 
         public Executor(ExecutorRegistry registry)
         {

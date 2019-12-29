@@ -90,7 +90,7 @@ namespace CloudAtlasAgent
 			Logger.LoggerLevel = LoggerLevel.All;
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 			destPair = pair;
-			TestModule(_zmi, serverPort, pair);
+			TestModule(_zmi, serverPort);
 			//RunServer(serverPort).Wait();
 		}
 		
@@ -113,7 +113,7 @@ namespace CloudAtlasAgent
 		private static Executor e;
 		private static (string, int) destPair;
 
-		private static void TestModule(ZMI zmi, ServerPort serverPort, (string, int) destPair)
+		private static void TestModule(ZMI zmi, ServerPort serverPort)
 		{
 			Console.WriteLine("Test started...");
 			using var er = new ExecutorRegistry();
@@ -131,31 +131,10 @@ namespace CloudAtlasAgent
 			var rmiModule = new RMIModule(e, zmiModule, serverPort);
 			if (!e.TryAddModule(rmiModule))
 				Console.WriteLine("Could not add RMI module");
-
-			var local = IPAddress.Parse("127.0.0.1");
 			
-			communication1 = new CommunicationModule(e, 100, IPAddress.Parse("192.168.1.146"), 42069, 5000);
+			communication1 = new CommunicationModule(e, 3000, IPAddress.Parse(serverPort.Host), serverPort.Port + 1, 5000);
 			if (!e.TryAddModule(communication1))
 				Console.WriteLine("Could not add Communication 1");
-			
-			// var communication2 = new CommunicationModule(e2, 100, local, 1235, 5000);
-			// if (!e2.TryAddModule(communication2))
-			// 	Console.WriteLine("Could not add Communication 2");
-
-//			static void PrintTest()
-//			{
-//				Console.WriteLine($"TEST ME ONLINE");
-//			}
-//
-//			void AddMessage()
-//			{
-//				e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 10, DateTimeOffset.Now, 
-//					AddMessage));
-//				e.AddMessage(new CommunicationSendMessage(new DummyModule(), communication1,
-//					new TimerAddCallbackMessage(
-//						new DummyModule(), timer, 0, 10, DateTimeOffset.Now, PrintTest),
-//					IPAddress.Parse(destPair.Item1), destPair.Item2));
-//			}
 			
 			e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 1, DateTimeOffset.Now, 
 				AddMessage));
@@ -175,8 +154,6 @@ namespace CloudAtlasAgent
 			// 	new TimerAddCallbackMessage(new DummyModule(), timer, 0, 2, DateTimeOffset.Now,
 			// 		PrintTest), local, 1234));
 			
-			
-
 			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 0, 8, DateTimeOffset.Now,
 			// 	() => Console.WriteLine("TEST ME 0")));
 			// e.AddMessage(new TimerAddCallbackMessage(new DummyModule(), timer, 1, 8, DateTimeOffset.Now,
@@ -195,8 +172,8 @@ namespace CloudAtlasAgent
 			{
 				Console.WriteLine("Could add TimerModule (sic!)");
 			}*/
-			
-			Thread.Sleep(150000);
+
+			Console.ReadLine();
 			Console.WriteLine("End");
 		}
 
