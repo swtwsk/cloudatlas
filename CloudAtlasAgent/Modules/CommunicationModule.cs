@@ -218,6 +218,8 @@ namespace CloudAtlasAgent.Modules
                     var bytesRec = socket.ReceiveMessageFrom(_buffer, 0, _buffer.Length, ref flags, ref remoteEnd,
                         out var packetInfo);
                     
+                    Logger.Log($"GOT PACKET FROM {packetInfo}");
+                    
                     Array.Copy(_buffer, 5, _msgIdBytes, 0, 4);
                     var msgId = (UInt32) IPAddress.NetworkToHostOrder((Int32) BitConverter.ToUInt32(_msgIdBytes));
                     var addressTuple = (packetInfo.Address, ((IPEndPoint) remoteEnd).Port, msgId);
