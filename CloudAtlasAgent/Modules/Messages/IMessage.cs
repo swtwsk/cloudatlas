@@ -21,6 +21,8 @@ namespace CloudAtlasAgent.Modules.Messages
         GossipStart,
         GossipAsk,
         GossipResponse,
+        ZMIAsk,
+        ZMIResponse,
         
         ZMIGetZones,
         ZMIGetAttributes,

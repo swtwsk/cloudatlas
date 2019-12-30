@@ -10,14 +10,14 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
     {
         private readonly Random _random = new Random();
 
-        public bool TryGetContact(ZMI zmi, out ValueContact contact)
+        public bool TryGetContact(ZMI zmi, out ValueContact contact, out int level)
         {
             contact = null;
 
-            if (!zmi.Attributes.TryGetValue("level", out var level))
+            if (!zmi.Attributes.TryGetValue("level", out var attrLevel))
                 throw new ArgumentException($"Could not find `level` in given zmi {zmi}");
 
-            var randomZoneLevels = Enumerable.Range(1, (int) ((ValueInt) level).Value.Ref - 1)
+            var randomZoneLevels = Enumerable.Range(1, (int) ((ValueInt) attrLevel).Value.Ref - 1)
                 .ToList();
             randomZoneLevels.Shuffle();
             
@@ -47,9 +47,13 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
                         randomIndex = _random.Next(contacts.Count + 1);
                     contact = (ValueContact) contacts[randomIndex]
                         .ConvertTo(AttributeTypePrimitive.Contact);
+                    level = rnd;
+                    
                     return true;
                 }
             }
+
+            level = -1;
 
             return false;
         }

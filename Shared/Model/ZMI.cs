@@ -28,6 +28,20 @@ namespace Shared.Model
         
         public PathName PathName => Father == null ? PathName.Root : Father.PathName.LevelDown(Name);
 
+        public List<(PathName, AttributesMap)> AggregateAttributesAbove(int level)
+        {
+            var result = new List<(PathName, AttributesMap)>();
+            var currentZmi = this;
+            
+            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref != level)
+            {
+                result.Add((currentZmi.PathName, currentZmi.Attributes));
+                currentZmi = currentZmi.Father;
+            }
+
+            return result;
+        }
+
         public bool TrySearch(string pathName, out ZMI zmi)
         {
             var paths = pathName.Split("/");

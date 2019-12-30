@@ -1,5 +1,6 @@
 ﻿using System;
 using System.IO;
+using System.Linq;
 using CommandLine;
 using Grpc.Core;
 using Shared.Logger;
@@ -75,10 +76,16 @@ namespace CloudAtlasAgent
 			Logger.LoggerLevel = LoggerLevel.All;
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 
+			var manageableZmi = _zmi;
+			while (manageableZmi.Sons.Any())
+				manageableZmi = manageableZmi.Sons.First();
+
 			using var manager = new ModulesManager(2000, serverPort.Host, serverPort.Port + 1, 3000, serverPort.Host,
-				serverPort.Port, _zmi);
+				serverPort.Port, 3, manageableZmi);
 
 			manager.Start();
+			Console.ReadLine();
+			Console.WriteLine("End");
 		}
 	}
 }

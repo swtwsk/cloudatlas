@@ -19,7 +19,9 @@ namespace CloudAtlasAgent
         private RMIModule _rmi;
         private GossipModule _gossip;
         
-        public ModulesManager(int maxPacketSize, string receiverHost, int receiverPort, int receiverTimeout, string rmiHost, int rmiPort, ZMI zmi)
+        public ModulesManager(int maxPacketSize, string receiverHost, int receiverPort, int receiverTimeout,
+            string rmiHost, int rmiPort, 
+            int gossipTimer, ZMI zmi)
         {
             Logger.Log("Creating modules...");
             _registry = new ExecutorRegistry();
@@ -38,12 +40,12 @@ namespace CloudAtlasAgent
             AddModule(_communication = new CommunicationModule(_executor, maxPacketSize, IPAddress.Parse(receiverHost), receiverPort, receiverTimeout));
             AddModule(_zmi = new ZMIModule(zmi, _executor));
             AddModule(_rmi = new RMIModule(_executor, new ServerPort(rmiHost, rmiPort, ServerCredentials.Insecure)));
-            AddModule(_gossip = new GossipModule());
+            AddModule(_gossip = new GossipModule(_executor, gossipTimer));
         }
 
         public void Start()
         {
-            TestModule();
+            //TestModule();
         }
 
         public void Dispose()
@@ -51,7 +53,7 @@ namespace CloudAtlasAgent
             _registry.Dispose();
         }
 
-        static void PrintTest()
+        private static void PrintTest()
         {
             Console.WriteLine($"TEST ME");
         }
@@ -74,9 +76,6 @@ namespace CloudAtlasAgent
             _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 5, 4, DateTimeOffset.Now,
                 () => Console.WriteLine("TEST ME 5")));
             _executor.AddMessage(new TimerRemoveCallbackMessage(typeof(DummyModule), typeof(TimerModule), 3));
-
-            Console.ReadLine();
-            Console.WriteLine("End");
         }
     }
 }

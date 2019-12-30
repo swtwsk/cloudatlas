@@ -7,12 +7,14 @@ namespace Shared.Model
     {
         public PathName Name { get; private set; }
         public IPAddress Address { get; private set; } // TODO: Check equivalence with InetAddress
+        public int Port { get; private set; }
 
         private ValueContact() {}
-        public ValueContact(PathName name, IPAddress address)
+        public ValueContact(PathName name, IPAddress address, int port = 5555)
         {
             Name = name;
             Address = address;
+            Port = port;
         }
         
         public override AttributeType AttributeType => AttributeTypePrimitive.Contact;

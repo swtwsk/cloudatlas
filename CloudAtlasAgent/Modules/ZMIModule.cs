@@ -39,9 +39,18 @@ namespace CloudAtlasAgent.Modules
 
         public void HandleMessage(IMessage message)
         {
-            switch (message as IZMIRequestMessage)
+	        if (message is ZMIAskMessage zmiAskMessage)
+	        {
+		        lock (_zmiLock)
+			        _executor.AddMessage(new ZMIResponseMessage(GetType(), zmiAskMessage.Source, _zmi,
+				        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(),
+				        zmiAskMessage));
+		        return;
+	        }
+	        
+	        switch (message as IZMIRequestMessage)
             {
-                case GetAttributesRequestMessage getAttributesZmiMessage:
+	            case GetAttributesRequestMessage getAttributesZmiMessage:
                     GetAttributes(getAttributesZmiMessage);
                     break;
                 case GetQueriesRequestMessage getQueriesRequestMessage:
@@ -63,7 +72,7 @@ namespace CloudAtlasAgent.Modules
 	                UninstallQuery(uninstallQueryRequestMessage);
                     break;
                 default:
-                    throw new ArgumentOutOfRangeException();
+                    throw new ArgumentOutOfRangeException(nameof(message));
             }
         }
         

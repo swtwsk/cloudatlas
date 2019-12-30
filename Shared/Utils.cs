@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Shared
 {
@@ -19,6 +20,14 @@ namespace Shared
                 list[n] = value;
             }
         }
+
+        public static T Random<T>(this IList<T> list)
+        {
+            var n = list.Count;
+            return list[Generator.Next(n + 1)];
+        }
+
+        public static T RandomOrDefault<T>(this IList<T> list) => list.Count == 0 ? default : list.Random();
     }
 
     public static class Compare

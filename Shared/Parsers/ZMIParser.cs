@@ -163,6 +163,7 @@ namespace Shared.Parsers
                         return false;
                     if (!split[0].StartsWith("/"))
                         split[0] = '/' + split[0];
+                    // TODO: Add port parsing
                     value = new ValueContact(new PathName(split[0]), address);
                     return true;
             }
