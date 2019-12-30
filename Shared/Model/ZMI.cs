@@ -5,10 +5,11 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Shared.Monads;
+using Shared.Parsers;
 
 namespace Shared.Model
 {
-    public class ZMI : ICloneable
+    public sealed class ZMI : ICloneable
     {
         public AttributesMap Attributes { get; private set; } = new AttributesMap();
         public List<ZMI> Sons { get; private set; } = new List<ZMI>();
@@ -28,7 +29,37 @@ namespace Shared.Model
         
         public PathName PathName => Father == null ? PathName.Root : Father.PathName.LevelDown(Name);
 
-        public List<(PathName, AttributesMap)> AggregateAttributesAbove(int level)
+        public override bool Equals(object obj)
+        {
+            if (!(obj is ZMI otherZmi))
+                return false;
+
+            return otherZmi.PathName.Equals(PathName);
+        }
+
+        public override int GetHashCode() => HashCode.Combine(PathName, Father);
+
+        public List<Timestamps> AggregateTimeStampsFrom(int level)
+        {
+            var result = new List<Timestamps>();
+            var currentZmi = this;
+            
+            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > level)
+            {
+                currentZmi = currentZmi.Father;
+            }
+            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
+            {
+                result.Add(currentZmi.Attributes.TryGetValue("timestamp", out var timestamp)
+                    ? new Timestamps(currentZmi.PathName, null)
+                    : new Timestamps(currentZmi.PathName, (ValueTime) timestamp));
+                currentZmi = currentZmi.Father;
+            }
+
+            return result;
+        }
+
+        public List<(PathName, AttributesMap)> AggregateAttributesFrom(int level)
         {
             var result = new List<(PathName, AttributesMap)>();
             var currentZmi = this;

@@ -12,18 +12,18 @@ namespace CloudAtlasAgent.Modules.Messages
         
         public ZMI Zmi { get; private set; }
         public IList<ValueContact> FallbackContacts { get; private set; }
-        public ZMIAskMessage Request { get; private set; }
-        
+        public Guid RequestGuid { get; private set; }
+
         private ZMIResponseMessage() {}
 
         public ZMIResponseMessage(Type source, Type destination, ZMI zmi, IList<ValueContact> fallbackContacts, 
-            ZMIAskMessage request)
+            Guid requestGuid)
         {
             Source = source;
             Destination = destination;
-            Zmi = zmi;
+            Zmi = (ZMI) zmi.Clone();
             FallbackContacts = fallbackContacts;
-            Request = request;
+            RequestGuid = requestGuid;
         }
     }
 }

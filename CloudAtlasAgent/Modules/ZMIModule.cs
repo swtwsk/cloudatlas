@@ -43,8 +43,7 @@ namespace CloudAtlasAgent.Modules
 	        {
 		        lock (_zmiLock)
 			        _executor.AddMessage(new ZMIResponseMessage(GetType(), zmiAskMessage.Source, _zmi,
-				        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(),
-				        zmiAskMessage));
+				        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(), zmiAskMessage.Guid));
 		        return;
 	        }
 	        

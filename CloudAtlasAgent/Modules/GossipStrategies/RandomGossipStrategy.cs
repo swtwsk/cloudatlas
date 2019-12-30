@@ -31,7 +31,7 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
                 }
 
                 var currFather = currentZmi.Father;
-                var otherSons = currFather.Sons.Where(z => z != currentZmi).ToList();
+                var otherSons = currFather.Sons.Where(z => !Equals(z, currentZmi)).ToList();
                 var randomOtherSonsIndexes = Enumerable.Range(0, otherSons.Count).ToList();
                 randomOtherSonsIndexes.Shuffle();
 
