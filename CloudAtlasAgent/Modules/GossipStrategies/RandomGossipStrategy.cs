@@ -17,7 +17,7 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
             if (!zmi.Attributes.TryGetValue("level", out var attrLevel))
                 throw new ArgumentException($"Could not find `level` in given zmi {zmi}");
 
-            var randomZoneLevels = Enumerable.Range(1, (int) ((ValueInt) attrLevel).Value.Ref - 1)
+            var randomZoneLevels = Enumerable.Range(1, (int) ((ValueInt) attrLevel).Value.Ref)
                 .ToList();
             randomZoneLevels.Shuffle();
             
@@ -44,7 +44,7 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
 
                     int randomIndex;
                     lock (_random)
-                        randomIndex = _random.Next(contacts.Count + 1);
+                        randomIndex = _random.Next(contacts.Count);
                     contact = (ValueContact) contacts[randomIndex]
                         .ConvertTo(AttributeTypePrimitive.Contact);
                     level = rnd;

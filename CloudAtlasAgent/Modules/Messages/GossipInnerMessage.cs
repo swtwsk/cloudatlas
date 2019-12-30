@@ -10,14 +10,17 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         public DateTimeOffset TimeStamp { get; private set; }
         public InformationsList Informations { get; private set; }
+        public int Level { get; private set; }
         public ValueContact Contact { get; private set; }
         
         private GossipInnerMessage() {}
 
-        public GossipInnerMessage(DateTimeOffset timeStamp, InformationsList informations, ValueContact contact)
+        public GossipInnerMessage(DateTimeOffset timeStamp, InformationsList informations, int level, 
+            ValueContact contact)
         {
             TimeStamp = timeStamp;
             Informations = informations;
+            Level = level;
             Contact = contact;
         }
     }

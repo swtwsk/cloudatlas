@@ -45,11 +45,11 @@ namespace CloudAtlasAgent.Modules
         private readonly IExecutor _executor;
         private IGossipStrategy _gossipStrategy;
 
-        private readonly IDictionary<IMessage, GossipInnerMessage> _waitingForZMI =
-            new Dictionary<IMessage, GossipInnerMessage>();
+        private readonly IDictionary<IMessage, (GossipInnerMessage gossip, bool isResponse)> _waitingForZMI =
+            new Dictionary<IMessage, (GossipInnerMessage, bool)>();
 
-        private readonly BlockingCollection<(GossipInnerMessage, IList<ValueContact>, ZMI)> _forThread =
-            new BlockingCollection<(GossipInnerMessage, IList<ValueContact>, ZMI)>();
+        private readonly BlockingCollection<(GossipInnerMessage, bool, IList<ValueContact>, ZMI)> _forThread =
+            new BlockingCollection<(GossipInnerMessage, bool, IList<ValueContact>, ZMI)>();
         
         private BlockingCollection<GossipInnerMessage> _toRespond = new BlockingCollection<GossipInnerMessage>();
         private BlockingCollection<GossipInnerMessage> _responses = new BlockingCollection<GossipInnerMessage>();
@@ -63,28 +63,48 @@ namespace CloudAtlasAgent.Modules
             switch (message)
             {
                 case ZMIResponseMessage responseMessage:
-                    if (!_waitingForZMI.TryGetValue(responseMessage.Request, out var innerMessage))
+                    if (!_waitingForZMI.TryGetValue(responseMessage.Request, out var pair))
                     {
                         Logger.LogError("Could not find request for ZMIResponse");
                         return;
                     }
-                    _forThread.Add((innerMessage, responseMessage.FallbackContacts, responseMessage.Zmi));
+                    _forThread.Add((pair.gossip, pair.isResponse, responseMessage.FallbackContacts, 
+                        responseMessage.Zmi));
                     break;
                 case GossipAskMessage gossipAskMessage:
-                    Logger.Log("Gossip ask message");
+                    var askMessage1 = new ZMIAskMessage(GetType(), typeof(ZMIModule));
+                    _waitingForZMI.Add(askMessage1, (gossipAskMessage.GossipMessage, false));
+                    _executor.AddMessage(askMessage1);
                     break;
                 case GossipResponseMessage gossipResponseMessage:
-                    Logger.Log("Gossip response message");
-                    //_forThread.Add((gossipResponseMessage.GossipMessage, null, ));
+                    var askMessage2 = new ZMIAskMessage(GetType(), typeof(ZMIModule));
+                    _waitingForZMI.Add(askMessage2, (gossipResponseMessage.GossipMessage, true));
+                    _executor.AddMessage(askMessage2);
                     break;
                 case GossipStartMessage _:
-                    var askMessage = new ZMIAskMessage(GetType(), typeof(ZMIModule));
-                    _waitingForZMI.Add(askMessage, null);
-                    _executor.AddMessage(askMessage);
+                    var askMessage3 = new ZMIAskMessage(GetType(), typeof(ZMIModule));
+                    _waitingForZMI.Add(askMessage3, default);
+                    _executor.AddMessage(askMessage3);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));
             }
+        }
+
+        private static GossipInnerMessage PrepareGossipMessage(ZMI zmi, int level)
+        {
+            var toSend = zmi.AggregateAttributesAbove(level);
+            if (!zmi.Attributes.TryGetValue("contacts", out var attrMyContacts) || attrMyContacts.IsNull ||
+                !attrMyContacts.AttributeType.IsCompatible(
+                    new AttributeTypeCollection(PrimaryType.Set, AttributeTypePrimitive.Contact)) ||
+                ((ValueSet) attrMyContacts).Count != 1)
+            {
+                Logger.LogError("Could not find proper contacts set");
+            }
+
+            var myContact = (ValueContact) ((ValueSet) attrMyContacts).First();
+
+            return new GossipInnerMessage(DateTimeOffset.Now, toSend, level, myContact);
         }
 
         private void Gossip()
@@ -93,11 +113,11 @@ namespace CloudAtlasAgent.Modules
             {
                 while (true)
                 {
-                    var (innerMsg, fallbacks, zmi) = _forThread.Take();
+                    var (gossipMessage, isResponse, fallbacks, zmi) = _forThread.Take();
 
-                    if (innerMsg != null)
+                    if (gossipMessage != null)
                     {
-                        ProcessGossip(innerMsg);
+                        ProcessGossip(gossipMessage, isResponse, zmi);
                         continue;
                     }
                     
@@ -112,22 +132,14 @@ namespace CloudAtlasAgent.Modules
                             continue;
                         }
                     }
-
-                    var toSend = zmi.AggregateAttributesAbove(level);
-                    if (!zmi.Attributes.TryGetValue("contacts", out var attrMyContacts) || attrMyContacts.IsNull ||
-                        !attrMyContacts.AttributeType.IsCompatible(
-                            new AttributeTypeCollection(PrimaryType.Set, AttributeTypePrimitive.Contact)) ||
-                        ((ValueSet) attrMyContacts).Count != 1)
-                    {
-                        Logger.LogError("Could not find proper contacts set");
-                    }
-
-                    var myContact = (ValueContact) ((ValueSet) attrMyContacts).First();
+                    
+                    //Logger.Log($"Contact = {contact}");
+                    
+                    var innerMessage = PrepareGossipMessage(zmi, level);
+                    var gossipAskMsg = new GossipAskMessage(GetType(), typeof(GossipModule), innerMessage);
 
                     var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
-                        new GossipResponseMessage(GetType(), typeof(GossipModule),
-                            new GossipInnerMessage(DateTimeOffset.Now, toSend, myContact)), contact.Address,
-                        contact.Port);
+                        gossipAskMsg, contact.Address, contact.Port);
                     _executor.AddMessage(newMsg);
                 }
             }
@@ -135,10 +147,21 @@ namespace CloudAtlasAgent.Modules
             catch (Exception e) { Logger.LogException(e); }
         }
 
-        private void ProcessGossip(GossipInnerMessage gossip)
+        private void ProcessGossip(GossipInnerMessage gossip, bool isResponse, ZMI zmi)
         {
             // TODO:
-            Logger.Log($"Acquired gossip sent at {gossip.TimeStamp}");
+            Logger.Log($"Acquired gossip sent at {gossip.TimeStamp} from {gossip.Contact}, isResponse = {isResponse}");
+
+            if (!isResponse)
+            {
+                var innerMessage = PrepareGossipMessage(zmi, gossip.Level);
+                var gossipAskMsg = new GossipResponseMessage(GetType(), typeof(GossipModule), innerMessage);
+                
+                var contact = gossip.Contact;
+                var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
+                    gossipAskMsg, contact.Address, contact.Port);
+                _executor.AddMessage(newMsg);
+            }
         }
 
         public void Dispose()

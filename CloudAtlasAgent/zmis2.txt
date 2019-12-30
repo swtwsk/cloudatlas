@@ -4,17 +4,15 @@
 /uw
     level : integer = 1
     name : string = "uw"
-/pjwstk
-    level : integer = 1
-    name : string = "pjwstk"
+    contacts : set of 1 contact = {UW2A 127.0.0.1 5565}
 /uw/khaki31
     level : integer = 2
     name : string = "khaki31"
     owner : string = "/uw/khaki31"
     timestamp : time = 2012/11/09 20:03:00.000
-    contacts : set of 1 contact = {UW2A 127.0.0.2}
+    contacts : set of 1 contact = {UW2A 127.0.0.1 5565}
     cardinality : integer = 1
-    members : set of 1 contact = {UW2A 127.0.0.2}
+    members : set of 1 contact = {UW2A 127.0.0.1 5565}
     creation : time = 2011/11/09 20:12:13.123
     cpu_usage : double = NULL
     num_cores : integer = 3

@@ -33,7 +33,11 @@ namespace Shared.Model
             var result = new List<(PathName, AttributesMap)>();
             var currentZmi = this;
             
-            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref != level)
+            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > level)
+            {
+                currentZmi = currentZmi.Father;
+            }
+            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
             {
                 result.Add((currentZmi.PathName, currentZmi.Attributes));
                 currentZmi = currentZmi.Father;

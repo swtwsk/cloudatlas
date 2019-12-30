@@ -1,3 +1,4 @@
+using System;
 using System.Net;
 using Shared.Model.Exceptions;
 
@@ -6,7 +7,7 @@ namespace Shared.Model
     public class ValueContact : Value
     {
         public PathName Name { get; private set; }
-        public IPAddress Address { get; private set; } // TODO: Check equivalence with InetAddress
+        public IPAddress Address { get; private set; }
         public int Port { get; private set; }
 
         private ValueContact() {}
@@ -26,9 +27,17 @@ namespace Shared.Model
                 PrimaryType.Contact => this as Value,
                 PrimaryType.String => IsNull
                     ? ValueString.NullString
-                    : new ValueString($"({Name.ToString()}, {Address.ToString()})"),
+                    : new ValueString($"({Name}, {Address}:{Port})"),
                 _ => throw new UnsupportedConversionException(AttributeType, to)
             };
+        }
+
+        public override bool Equals(object obj)
+        {
+            if (obj == null || !(obj is ValueContact valueContact))
+                return false;
+
+            return Name.Equals(valueContact.Name) && Address.Equals(valueContact.Address) && Port == valueContact.Port;
         }
 
         public override Value GetDefaultValue() => new ValueContact(null, null);

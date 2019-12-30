@@ -157,14 +157,16 @@ namespace Shared.Parsers
                     }
 
                     var split = valueString.Split(' ');
-                    if (split.Length != 2)
+                    if (split.Length != 2 && split.Length != 3)
                         return false;
                     if (!IPAddress.TryParse(split[1], out var address))
                         return false;
+                    var port = 555;
+                    if (split.Length == 3 && !int.TryParse(split[2], out port))
+                        return false;
                     if (!split[0].StartsWith("/"))
                         split[0] = '/' + split[0];
-                    // TODO: Add port parsing
-                    value = new ValueContact(new PathName(split[0]), address);
+                    value = new ValueContact(new PathName(split[0]), address, port);
                     return true;
             }
 
