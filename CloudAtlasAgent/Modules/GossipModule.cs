@@ -14,14 +14,6 @@ namespace CloudAtlasAgent.Modules
 {
     public class GossipModule : IModule
     {
-        private enum GossipState
-        {
-            AskTimestamp,
-            ResponseTimestamp,
-            SendAttributes,
-            ResponseAttributes,
-        }
-        
         private GossipModule() {}
 
         public GossipModule(IExecutor executor, int gossipTimer, IGossipStrategy gossipStrategy = null)
@@ -56,9 +48,6 @@ namespace CloudAtlasAgent.Modules
 
         private readonly IDictionary<Guid, (ZMI, IList<ValueContact>)> _zmis =
             new Dictionary<Guid, (ZMI, IList<ValueContact>)>();
-        
-        private readonly IDictionary<Guid, GossipState> _states = new Dictionary<Guid, GossipState>();
-
         private readonly IDictionary<Guid, TimestampsInfo> _timestamps = new Dictionary<Guid, TimestampsInfo>();
 
         private readonly BlockingCollection<(Guid, GossipMessageBase)> _forThread =
@@ -118,6 +107,9 @@ namespace CloudAtlasAgent.Modules
                     timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
                     _forThread.Add((gossipResponseMessage.Guid, gossipResponseMessage));
                     break;
+                case GossipAttributesMessage gossipAttributesMessage:
+                    _forThread.Add((gossipAttributesMessage.Guid, gossipAttributesMessage));
+                    break;
                 case GossipStartMessage _:
                     _executor.AddMessage(new ZMIAskMessage(GetType(), Guid.NewGuid()));
                     break;
@@ -141,22 +133,6 @@ namespace CloudAtlasAgent.Modules
 
             return (toSend, myContact);
         }
-        
-//        private static GossipAttributesMessage prepareGossipAttributesMessage(ZMI zmi, int level)
-//        {
-//            var toSend = zmi.AggregateAttributesAbove(level);
-//            if (!zmi.Attributes.TryGetValue("contacts", out var attrMyContacts) || attrMyContacts.IsNull ||
-//                !attrMyContacts.AttributeType.IsCompatible(
-//                    new AttributeTypeCollection(PrimaryType.Set, AttributeTypePrimitive.Contact)) ||
-//                ((ValueSet) attrMyContacts).Count != 1)
-//            {
-//                Logger.LogError("Could not find proper contacts set");
-//            }
-//
-//            var myContact = (ValueContact) ((ValueSet) attrMyContacts).First();
-//
-//            return new GossipAttributesMessage(DateTimeOffset.Now, toSend, level, myContact);
-//        }
 
         private void Gossip()
         {
@@ -173,25 +149,29 @@ namespace CloudAtlasAgent.Modules
 
                     var (zmi, fallbacks) = zmiPair;
 
-                    if (gossipMessage != null)
+                    switch (gossipMessage)
                     {
-                        Logger.Log($"Gossip: {gossipMessage}");
-//                        ProcessGossip(gossipMessage, zmi);
-                        continue;
+                        case null:
+                            var timestampsToSave = _timestamps.TryGetValue(guid, out var timestampsInfo)
+                                ? RespondTimestamps(guid, timestampsInfo, zmi)
+                                : SendInitialTimestamps(guid, zmi, fallbacks);
+                            _timestamps[guid] = timestampsToSave;
+                            break;
+                        case GossipAttributesMessage gossipAttributesMessage:
+                            ProcessAttributeMessage(guid, gossipAttributesMessage, zmi);
+                            break;
+                        case GossipTimestampAskMessage _:
+                            Logger.LogError("Should not get here, something wrong with logic previously");
+                            break;
+                        case GossipTimestampResponseMessage gossipTimestampResponseMessage:
+                            ProcessTimestampResponse(guid, gossipTimestampResponseMessage, zmi);
+                            break;
                     }
-
-                    var timestampsToSave = _timestamps.TryGetValue(guid, out var timestampsInfo)
-                        ? RespondTimestamps(guid, timestampsInfo, zmi)
-                        : SendInitialTimestamps(guid, zmi, fallbacks);
-                    _timestamps[guid] = timestampsToSave;
                 }
             }
             catch (ThreadInterruptedException) {}
             catch (Exception e) { Logger.LogException(e); }
         }
-
-        private PathName _currentGossipZMI;  // ?
-//        private IDictionary<IGossipInnerMessage, 
 
         private TimestampsInfo SendInitialTimestamps(Guid guid, ZMI zmi, IList<ValueContact> fallbacks)
         {
@@ -234,7 +214,107 @@ namespace CloudAtlasAgent.Modules
             return new TimestampsInfo(contact, level, myTimestamps, hisTimestamps);
         }
 
-//        private void ProcessGossip(GossipMessageBase gossip, bool isResponse, ZMI zmi)
+        private void ProcessTimestampResponse(Guid guid, GossipTimestampResponseMessage timestampResponseMessage, ZMI zmi)
+        {
+            if (!_timestamps.TryGetValue(guid, out var timestampsInfo))
+            {
+                Logger.LogError(
+                    $"Could not find timestamps when processing GossipTimestampResponseMessage. Aborting gossiping.");
+                return;
+            }
+
+            timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
+            PrepareAndSendAttributes(guid, timestampsInfo, zmi, false);
+        }
+
+        private void ProcessAttributeMessage(Guid guid, GossipAttributesMessage attributesMessage, ZMI zmi)
+        {
+            if (!_timestamps.TryGetValue(guid, out var timestampsInfo))
+            {
+                Logger.LogError(
+                    $"Could not find timestamps when processing GossipTimestampResponseMessage. Aborting gossiping.");
+                return;
+            }
+
+            if (!attributesMessage.IsResponse)
+                PrepareAndSendAttributes(guid, timestampsInfo, zmi, true);
+            
+            _executor.AddMessage(new ZMIProcessGossipedMessage(GetType(), attributesMessage.Attributes));
+        }
+
+        private void PrepareAndSendAttributes(Guid guid, TimestampsInfo timestampsInfo, ZMI zmi, bool isResponse)
+        {
+            var (myInterestingAttributes, hisInterestingZmis) =
+                ExtractInterestingAttributes(zmi, timestampsInfo.MyTimestamps, timestampsInfo.HisTimestamps);
+            
+            var gossipMsg = new GossipAttributesMessage(guid, myInterestingAttributes, isResponse);
+            var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule), gossipMsg,
+                timestampsInfo.Contact.Address, timestampsInfo.Contact.Port);
+            _executor.AddMessage(newMsg);
+        }
+
+        // TODO: Remove hisZmis
+        private (IList<(PathName, AttributesMap)> myAttributes, IList<PathName> hisZmis)
+            ExtractInterestingAttributes(ZMI zmi, IEnumerable<Timestamps> myTimestamps,
+                IEnumerable<Timestamps> hisTimestamps)
+        {
+            var mySortedTimestamps = myTimestamps.ToList();
+            mySortedTimestamps.Sort();
+            var hisSortedTimestamps = hisTimestamps.ToList();
+            hisSortedTimestamps.Sort();
+
+            var i = 0;
+            var j = 0;
+
+            var myFather = zmi.GetFather();
+
+            var myAttributes = new List<(PathName, AttributesMap)>();
+            var hisZmis = new List<PathName>();
+
+            void ExtractAndSaveMyAttr()
+            {
+                var pathName = mySortedTimestamps[i].PathName;
+                if (!myFather.TrySearch(pathName.ToString(), out var foundZmi))
+                {
+                    Logger.LogWarning($"Couldn't find zmi for {pathName}");
+                    return;
+                }
+                myAttributes.Add((pathName, foundZmi.Attributes));
+            }
+
+            while (i < mySortedTimestamps.Count && j < hisSortedTimestamps.Count)
+            {
+                if (mySortedTimestamps[i].CompareTo(hisSortedTimestamps[j]) < 0)
+                {
+                    ExtractAndSaveMyAttr();
+                    i++;
+                }
+                else if (mySortedTimestamps[i].CompareTo(hisSortedTimestamps[j]) > 0)
+                {
+                    hisZmis.Add(hisSortedTimestamps[j].PathName);
+                    j++;
+                }
+                else
+                {
+                    var timestampComp = mySortedTimestamps[i].CompareTimestamps(hisSortedTimestamps[j]);
+                    if (timestampComp < 0)
+                    {
+                        hisZmis.Add(hisSortedTimestamps[j].PathName);
+                    }
+                    else if (timestampComp > 0)
+                    {
+                        ExtractAndSaveMyAttr();
+                    }
+                    
+                    i++;
+                    j++;
+                }
+            }
+
+            return (myAttributes, hisZmis);
+        }
+
+//        private void ProcessGossip(GossipMessageBase gossip, ZMI zmi)
 //        {
 //            // TODO:
 //            Logger.Log($"Acquired gossip sent at {gossip.TimeStamp} from {gossip.Contact}, isResponse = {isResponse}");

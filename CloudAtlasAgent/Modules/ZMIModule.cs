@@ -46,6 +46,12 @@ namespace CloudAtlasAgent.Modules
 				        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(), zmiAskMessage.Guid));
 		        return;
 	        }
+
+	        if (message is ZMIProcessGossipedMessage processGossipedMessage)
+	        {
+		        Logger.Log("Processing gossiped message :)");
+		        return;
+	        }
 	        
 	        switch (message as IZMIRequestMessage)
             {

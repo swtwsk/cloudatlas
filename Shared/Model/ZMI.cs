@@ -37,7 +37,18 @@ namespace Shared.Model
             return otherZmi.PathName.Equals(PathName);
         }
 
-        public override int GetHashCode() => HashCode.Combine(PathName, Father);
+        public override int GetHashCode()
+        {
+            return HashCode.Combine(PathName, Father);
+        }
+
+        public ZMI GetFather()
+        {
+            var currentZmi = this;
+            while (currentZmi.Father != null)
+                currentZmi = currentZmi.Father;
+            return currentZmi;
+        }
 
         public List<Timestamps> AggregateTimeStampsFrom(int level)
         {
@@ -51,26 +62,8 @@ namespace Shared.Model
             while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
             {
                 result.Add(currentZmi.Attributes.TryGetValue("timestamp", out var timestamp)
-                    ? new Timestamps(currentZmi.PathName, null)
+                    ? new Timestamps(currentZmi.PathName, Maybe<ValueTime>.Nothing)
                     : new Timestamps(currentZmi.PathName, (ValueTime) timestamp));
-                currentZmi = currentZmi.Father;
-            }
-
-            return result;
-        }
-
-        public List<(PathName, AttributesMap)> AggregateAttributesFrom(int level)
-        {
-            var result = new List<(PathName, AttributesMap)>();
-            var currentZmi = this;
-            
-            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > level)
-            {
-                currentZmi = currentZmi.Father;
-            }
-            while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
-            {
-                result.Add((currentZmi.PathName, currentZmi.Attributes));
                 currentZmi = currentZmi.Father;
             }
 

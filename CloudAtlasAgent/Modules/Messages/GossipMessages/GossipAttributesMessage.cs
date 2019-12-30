@@ -4,7 +4,7 @@ using Shared.Model;
 
 namespace CloudAtlasAgent.Modules.Messages.GossipMessages
 {
-    using AttributesList = List<(PathName pathName, AttributesMap attributes)>;
+    using AttributesList = IList<(PathName pathName, AttributesMap attributes)>;
     
     public class GossipAttributesMessage : GossipMessageBase
     {
