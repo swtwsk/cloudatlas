@@ -19,7 +19,6 @@ namespace CloudAtlasAgent.Modules
         public override int GetHashCode() => "RMI".GetHashCode();
 
         private readonly IExecutor _executor;
-        private readonly ZMIModule _zmiModule;
         
         private readonly object _dictLock = new object();
         private readonly IDictionary<IMessage, IMessage> _dictionary = new Dictionary<IMessage, IMessage>();
@@ -27,10 +26,9 @@ namespace CloudAtlasAgent.Modules
         private readonly Thread _serverThread;
         private readonly Grpc.Core.Server _server;
         
-        public RMIModule(IExecutor executor, ZMIModule zmiModule, ServerPort serverPort)
+        public RMIModule(IExecutor executor, ServerPort serverPort)
         {
             _executor = executor;
-            _zmiModule = zmiModule;
             _server = new Grpc.Core.Server
             {
                 Ports = {serverPort},
@@ -64,48 +62,48 @@ namespace CloudAtlasAgent.Modules
         {
             Logger.Log("GetZones");
             return ProcessTask<HashSet<string>, GetZonesRequestMessage, GetZonesResponseMessage>(
-	            new GetZonesRequestMessage(this, _zmiModule));
+	            new GetZonesRequestMessage(GetType(), typeof(ZMIModule)));
         }
 
         private Task<AttributesMap> GetAttributes(string pathName, ServerCallContext ctx)
         {
             Logger.Log($"GetAttributes({pathName})");
             return ProcessTask<AttributesMap, GetAttributesRequestMessage, GetAttributesResponseMessage>(
-	            new GetAttributesRequestMessage(this, _zmiModule, pathName));
+	            new GetAttributesRequestMessage(GetType(), typeof(ZMIModule), pathName));
         }
 
         private Task<HashSet<string>> GetQueries(Empty _, ServerCallContext ctx)
 		{
 			Logger.Log($"GetQueries");
 			return ProcessTask<HashSet<string>, GetQueriesRequestMessage, GetQueriesResponseMessage>(
-				new GetQueriesRequestMessage(this, _zmiModule));
+				new GetQueriesRequestMessage(GetType(), typeof(ZMIModule)));
 		}
 
 		private Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
 		{
 			Logger.Log($"InstallQuery({query})");
 			return ProcessTask<RefStruct<bool>, InstallQueryRequestMessage, InstallQueryResponseMessage>(
-				new InstallQueryRequestMessage(this, _zmiModule, query));
+				new InstallQueryRequestMessage(GetType(), typeof(ZMIModule), query));
 		}
 
 		private Task<RefStruct<bool>> UninstallQuery(string queryName, ServerCallContext ctx)
 		{
 			Logger.Log($"UninstallQuery({queryName})");
 			return ProcessTask<RefStruct<bool>, UninstallQueryRequestMessage, UninstallQueryResponseMessage>(
-				new UninstallQueryRequestMessage(this, _zmiModule, queryName));
+				new UninstallQueryRequestMessage(GetType(), typeof(ZMIModule), queryName));
 		}
 
 		private Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)
 		{
 			Logger.Log($"SetAttribute({attributeMessage})");
 			return ProcessTask<RefStruct<bool>, SetAttributeRequestMessage, SetAttributeResponseMessage>(
-				new SetAttributeRequestMessage(this, _zmiModule, attributeMessage));
+				new SetAttributeRequestMessage(GetType(), typeof(ZMIModule), attributeMessage));
 		}
 
 		private Task<RefStruct<bool>> SetContacts(ValueSet contacts, ServerCallContext ctx)
 		{
 			return ProcessTask<RefStruct<bool>, SetContactsRequestMessage, SetContactsResponseMessage>(
-				new SetContactsRequestMessage(this, _zmiModule, contacts));
+				new SetContactsRequestMessage(GetType(), typeof(ZMIModule), contacts));
 		}
 		
 		private Task<T> ProcessTask<T, TReq, TRes>(TReq requestMsg)

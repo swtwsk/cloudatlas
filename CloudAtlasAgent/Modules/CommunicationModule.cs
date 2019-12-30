@@ -55,6 +55,7 @@ namespace CloudAtlasAgent.Modules
         
         public void Dispose()
         {
+            Logger.LogWarning("Disposing CommunicationModule");
             _queue?.Dispose();
             _senderThread?.Interrupt();
             _sender.Dispose();
@@ -303,7 +304,7 @@ namespace CloudAtlasAgent.Modules
 
             public void Dispose()
             {
-                _socket?.Close(3);
+                _socket?.Close();
             }
         }
     }

@@ -1,13 +1,15 @@
-﻿namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
+﻿using System;
+
+namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
 {
     public class GetQueriesRequestMessage : IZMIRequestMessage
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.ZMIGetQueries;
 
         private GetQueriesRequestMessage() {}
-        public GetQueriesRequestMessage(IModule source, IModule destination)
+        public GetQueriesRequestMessage(Type source, Type destination)
         {
             Source = source;
             Destination = destination;

@@ -83,7 +83,7 @@ namespace CloudAtlasAgent.Modules
             lock(_zmiLock)
                 GetRecursiveZones(_zmi);
 
-            _executor.AddMessage(new GetZonesResponseMessage(this, requestMessage.Source, requestMessage, set));
+            _executor.AddMessage(new GetZonesResponseMessage(GetType(), requestMessage.Source, requestMessage, set));
         }
 
         private void GetAttributes(GetAttributesRequestMessage requestMessage)
@@ -94,7 +94,7 @@ namespace CloudAtlasAgent.Modules
             lock (_zmiLock)
                 toReturn = _zmi.TrySearch(requestMessage.PathName, out var zmi) ? zmi.Attributes : null;
 
-            _executor.AddMessage(new GetAttributesResponseMessage(this, requestMessage.Source, requestMessage,
+            _executor.AddMessage(new GetAttributesResponseMessage(GetType(), requestMessage.Source, requestMessage,
                 toReturn));
         }
         
@@ -106,7 +106,7 @@ namespace CloudAtlasAgent.Modules
 			lock (_queriesLock)
 				toReturn = _queries.Keys.ToHashSet();
 
-			_executor.AddMessage(new GetQueriesResponseMessage(this, requestMessage.Source, requestMessage, toReturn));
+			_executor.AddMessage(new GetQueriesResponseMessage(GetType(), requestMessage.Source, requestMessage, toReturn));
 		}
 
         private void InstallQuery(InstallQueryRequestMessage requestMessage)
@@ -116,7 +116,7 @@ namespace CloudAtlasAgent.Modules
 	        var q = requestMessage.Query.Split(":", 2);
 	        if (q.Length != 2)
 	        {
-		        _executor.AddMessage(new InstallQueryResponseMessage(this, requestMessage.Source, requestMessage, 
+		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, 
 			        false));
 		        return;
 	        }
@@ -128,7 +128,7 @@ namespace CloudAtlasAgent.Modules
 	        {
 		        if (!_queries.TryAdd(name, innerQueries))
 		        {
-			        _executor.AddMessage(new InstallQueryResponseMessage(this, requestMessage.Source, requestMessage,
+			        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
 				        false));
 			        return;
 		        }
@@ -137,7 +137,7 @@ namespace CloudAtlasAgent.Modules
 	        lock (_zmiLock)
 		        Interpreter.Interpreter.ExecuteQueries(_zmi, innerQueries);
 
-	        _executor.AddMessage(new InstallQueryResponseMessage(this, requestMessage.Source, requestMessage, true));
+	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
         }
 
         private void UninstallQuery(UninstallQueryRequestMessage requestMessage)
@@ -148,7 +148,7 @@ namespace CloudAtlasAgent.Modules
 			lock (_queriesLock)
 				toReturn = _queries.Remove(requestMessage.QueryName);
 			_executor.AddMessage(
-				new UninstallQueryResponseMessage(this, requestMessage.Source, requestMessage, toReturn));
+				new UninstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, toReturn));
 		}
 
 		private void SetAttribute(SetAttributeRequestMessage requestMessage)
@@ -160,7 +160,7 @@ namespace CloudAtlasAgent.Modules
 			lock (_zmiLock)
 			{
 				if (!_zmi.TrySearch(pathName, out var zmi))
-					_executor.AddMessage(new SetAttributeResponseMessage(this, requestMessage.Source, requestMessage,
+					_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage,
 						false));
 
 				zmi.Attributes.AddOrChange(attribute, value);
@@ -172,14 +172,14 @@ namespace CloudAtlasAgent.Modules
 				}
 			}
 
-			_executor.AddMessage(new SetAttributeResponseMessage(this, requestMessage.Source, requestMessage, true));
+			_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
 		}
 
 		private void SetContacts(SetContactsRequestMessage requestMessage)
 		{
 			lock (_contactsLock)
 				_contacts = requestMessage.Contacts;
-			_executor.AddMessage(new SetContactsResponseMessage(this, requestMessage.Source, requestMessage, true));
+			_executor.AddMessage(new SetContactsResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
 		}
     }
 }

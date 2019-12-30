@@ -1,11 +1,12 @@
-﻿using Ceras;
+﻿using System;
+using Ceras;
 
 namespace CloudAtlasAgent.Modules.Messages
 {
     public interface IMessage
     {
-        IModule Source { get; }
-        IModule Destination { get; }
+        Type Source { get; }
+        Type Destination { get; }
         [Exclude] MessageType MessageType { get; }
     }
 

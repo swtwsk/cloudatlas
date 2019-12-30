@@ -4,8 +4,8 @@ namespace CloudAtlasAgent.Modules.Messages
 {
     public class TimerAddCallbackMessage : IMessage
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.TimerAddCallback;
         
         public int RequestId { get; private set; }
@@ -15,7 +15,7 @@ namespace CloudAtlasAgent.Modules.Messages
         
         private TimerAddCallbackMessage() {}
 
-        public TimerAddCallbackMessage(IModule source, IModule destination, int requestId, int delay,
+        public TimerAddCallbackMessage(Type source, Type destination, int requestId, int delay,
             DateTimeOffset timeFrom, Action callback)
         {
             Source = source;

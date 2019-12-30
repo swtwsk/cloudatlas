@@ -1,16 +1,18 @@
-﻿namespace CloudAtlasAgent.Modules.Messages
+﻿using System;
+
+namespace CloudAtlasAgent.Modules.Messages
 {
     public class GossipResponseMessage : IMessage
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.GossipResponse;
         
         public GossipInnerMessage GossipMessage { get; private set; }
         
         private GossipResponseMessage() {}
 
-        public GossipResponseMessage(IModule source, IModule destination, GossipInnerMessage gossipMessage)
+        public GossipResponseMessage(Type source, Type destination, GossipInnerMessage gossipMessage)
         {
             Source = source;
             Destination = destination;

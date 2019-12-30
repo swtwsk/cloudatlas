@@ -1,18 +1,19 @@
-﻿using Shared;
+﻿using System;
+using Shared;
 
 namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
 {
     public class InstallQueryResponseMessage : IZMIResponseMessage<RefStruct<bool>>
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.ZMIInstallQueryResponse;
         public IZMIRequestMessage Request { get; private set; }
         public RefStruct<bool> Response { get; private set; }
         
         private InstallQueryResponseMessage() {}
 
-        public InstallQueryResponseMessage(IModule source, IModule destination, IZMIRequestMessage request,
+        public InstallQueryResponseMessage(Type source, Type destination, IZMIRequestMessage request,
             RefStruct<bool> response)
         {
             Source = source;

@@ -14,7 +14,7 @@ namespace CloudAtlasAgent.Modules
     
     public class Executor : IDisposable, IExecutor
     {
-        private readonly HashSet<IModule> _modules = new HashSet<IModule>();
+        private readonly IDictionary<Type, IModule> _modules = new Dictionary<Type, IModule>();
         private readonly ExecutorRegistry _registry;
         
         private readonly BlockingCollection<IMessage> _messages = new BlockingCollection<IMessage>();
@@ -33,7 +33,7 @@ namespace CloudAtlasAgent.Modules
 
         public bool TryAddModule(IModule module)
         {
-            if (_modules.Contains(module))
+            if (_modules.ContainsKey(module.GetType()))
             {
                 Logger.LogError($"Executor already has module {module}");
                 return false;
@@ -43,53 +43,42 @@ namespace CloudAtlasAgent.Modules
                 Logger.LogError($"Other executor already has module {module}");
                 return false;
             }
-            _modules.Add(module);
+            _modules.Add(module.GetType(), module);
             _registry.AddModule(module, this);
             return true;
         }
 
         private void HandleMessage()
         {
-            while (true)
+            try
             {
-                var message = _messages.Take();
-                if (!_modules.TryGetValue(message.Destination, out var module))
+                while (true)
                 {
-                    if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
-                        msgExecutor.AddMessage(message);
-                    Logger.LogError($"Could not find handler for {message}!");
-                    throw new ArgumentOutOfRangeException(nameof(message));
+                    var message = _messages.Take();
+                    if (!_modules.TryGetValue(message.Destination, out var module))
+                    {
+                        if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
+                            msgExecutor.AddMessage(message);
+                        Logger.LogError($"Could not find handler for {message}!");
+                        throw new ArgumentOutOfRangeException(nameof(message));
+                    }
+
+                    module.HandleMessage(message);
                 }
-
-                module.HandleMessage(message);
             }
-
-            // switch (message)
-            // {
-            //     case TimerAddCallbackMessage _:
-            //     case TimerRemoveCallbackMessage _:
-            //         if (!_modules.TryGetValue(message.Destination, out module))
-            //         {
-            //             if (_registry.TryGetExecutor(message.Destination, out var msgExecutor))
-            //                 msgExecutor.HandleMessage(message);
-            //             Logger.LogError($"Could not find handler for {message}!");
-            //             return;
-            //         }
-            //         module.HandleMessage(message);
-            //         break;
-            //     case CommunicationSendMessage sendMessage:
-            //         
-            //     default:
-            //         throw new ArgumentOutOfRangeException(nameof(message));
-            // }
+            catch (ThreadInterruptedException) { Logger.LogWarning("Executor thread interrupted"); }
+            catch (ObjectDisposedException e) { Logger.LogException(e); }
+            catch (Exception e) { Logger.LogException(e); }
         }
+
 
         public void Dispose()
         {
-            foreach (var m in _modules)
-                m.Dispose();
-            
+            _messages?.Dispose();
             _executorThread?.Interrupt();
+            
+            foreach (var m in _modules.Values)
+                m.Dispose();
         }
     }
 }

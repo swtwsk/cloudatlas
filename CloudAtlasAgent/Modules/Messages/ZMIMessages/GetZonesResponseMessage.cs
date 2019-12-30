@@ -1,11 +1,12 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
 {
     public class GetZonesResponseMessage : IZMIResponseMessage<HashSet<string>>
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.ZMIGetZonesResponse;
         public IZMIRequestMessage Request { get; private set; }
 
@@ -13,7 +14,7 @@ namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
 
         private GetZonesResponseMessage() {}
         
-        public GetZonesResponseMessage(IModule source, IModule destination, IZMIRequestMessage request, 
+        public GetZonesResponseMessage(Type source, Type destination, IZMIRequestMessage request, 
             HashSet<string> response)
         {
             Source = source;

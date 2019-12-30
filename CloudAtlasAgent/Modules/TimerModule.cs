@@ -59,7 +59,7 @@ namespace CloudAtlasAgent.Modules
         {
             public DateTimeOffset Delay { get; }
             public Action Callback { get; }
-            private IModule Sender { get; }
+            private Type Sender { get; }
             private int RequestId { get; }
 
             public TimerCallback(TimerAddCallbackMessage message) : this(
@@ -68,7 +68,7 @@ namespace CloudAtlasAgent.Modules
                 message.RequestId,
                 message.Callback) {}
 
-            public TimerCallback(DateTimeOffset delay, IModule sender, int requestId, Action callback)
+            public TimerCallback(DateTimeOffset delay, Type sender, int requestId, Action callback)
             {
                 Delay = delay;
                 Sender = sender;
@@ -87,7 +87,7 @@ namespace CloudAtlasAgent.Modules
             public int CompareTo(TimerCallback other) => other == null ? 1 : Delay.CompareTo(other.Delay);
 
             public bool Equals(TimerCallback other) =>
-                other != null && Sender.Equals(other.Sender) && RequestId == other.RequestId;
+                other != null && Sender == other.Sender && RequestId == other.RequestId;
 
             public override bool Equals(object? obj) => obj != null && Equals(obj as TimerCallback);
 

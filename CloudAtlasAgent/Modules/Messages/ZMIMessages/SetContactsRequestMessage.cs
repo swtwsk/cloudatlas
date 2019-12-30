@@ -1,18 +1,19 @@
-﻿using Shared.Model;
+﻿using System;
+using Shared.Model;
 
 namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
 {
     public class SetContactsRequestMessage : IZMIRequestMessage
     {
-        public IModule Source { get; private set; }
-        public IModule Destination { get; private set; }
+        public Type Source { get; private set; }
+        public Type Destination { get; private set; }
         public MessageType MessageType => MessageType.ZMISetContacts;
         
         public ValueSet Contacts { get; private set; }
         
         private SetContactsRequestMessage() {}
 
-        public SetContactsRequestMessage(IModule source, IModule destination, ValueSet contacts)
+        public SetContactsRequestMessage(Type source, Type destination, ValueSet contacts)
         {
             Source = source;
             Destination = destination;
