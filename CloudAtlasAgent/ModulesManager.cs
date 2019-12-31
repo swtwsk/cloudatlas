@@ -21,7 +21,7 @@ namespace CloudAtlasAgent
         
         public ModulesManager(int maxPacketSize, string receiverHost, int receiverPort, int receiverTimeout,
             string rmiHost, int rmiPort, 
-            int gossipTimer, ZMI zmi)
+            int gossipTimer, int retryDelay, int maxRetriesCount, ZMI zmi)
         {
             Logger.Log("Creating modules...");
             _registry = new ExecutorRegistry();
@@ -36,11 +36,11 @@ namespace CloudAtlasAgent
                     $"Could not add {module.GetType().Name}, which violates the application");
             }
             
-            AddModule(_timer = new TimerModule());
+            AddModule(_timer = new TimerModule(_executor));
             AddModule(_communication = new CommunicationModule(_executor, maxPacketSize, IPAddress.Parse(receiverHost), receiverPort, receiverTimeout));
             AddModule(_zmi = new ZMIModule(zmi, _executor));
             AddModule(_rmi = new RMIModule(_executor, new ServerPort(rmiHost, rmiPort, ServerCredentials.Insecure)));
-            AddModule(_gossip = new GossipModule(_executor, gossipTimer));
+            AddModule(_gossip = new GossipModule(_executor, gossipTimer, retryDelay, maxRetriesCount));
         }
 
         public void Start()

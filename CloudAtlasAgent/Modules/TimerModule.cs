@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Threading;
 using CloudAtlasAgent.Modules.Messages;
+using CloudAtlasAgent.Modules.Messages.GossipMessages;
 using Shared.Logger;
 
 namespace CloudAtlasAgent.Modules
@@ -20,8 +21,11 @@ namespace CloudAtlasAgent.Modules
         private readonly ISet<TimerCallback> _set = new HashSet<TimerCallback>();
         private readonly Thread _sleeperThread;
 
-        public TimerModule()
+        private readonly IExecutor _executor;
+
+        public TimerModule(IExecutor executor)
         {
+            _executor = executor;
             var sleeper = new Sleeper(_priorityQueue, _set);
             _sleeperThread = new Thread(sleeper.Start);
             _sleeperThread.Start();
@@ -38,6 +42,11 @@ namespace CloudAtlasAgent.Modules
                     lock (_set)
                         _set.Add(new TimerCallback(new DateTimeOffset(), timerRemoveCallbackMessage.Source,
                             timerRemoveCallbackMessage.RequestId, null));
+                    break;
+                case TimerRetryGossipMessage retryGossipMessage:
+                    _priorityQueue.TryAdd(new TimerCallback(retryGossipMessage.TimeStamp, typeof(GossipModule),
+                        retryGossipMessage.RequestId,
+                        () => { _executor.AddMessage(new GossipRetryMessage(GetType(), retryGossipMessage.Guid)); }));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));

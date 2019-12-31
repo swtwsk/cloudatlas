@@ -56,8 +56,8 @@ namespace CloudAtlasAgent.Modules
 				        _zmi.UpdateZMI(gossip);
 				        
 				        // TODO: REMOVE THIS!
-				        Logger.Log($"Updated ZMI {_zmi}");
-				        Logger.Log("\n" + _zmi.GetFather().PrintAttributes());
+//				        Logger.Log($"Updated ZMI {_zmi}");
+//				        Logger.Log("\n" + _zmi.GetFather().PrintAttributes());
 			        }
 		        }
 	        }

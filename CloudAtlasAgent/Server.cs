@@ -88,7 +88,7 @@ namespace CloudAtlasAgent
 			manageableZmi.Attributes.AddOrChange("freshness", creationTimestamp);
 
 			using var manager = new ModulesManager(2000, serverPort.Host, serverPort.Port + 1, 3000, serverPort.Host,
-				serverPort.Port, 3, manageableZmi);
+				serverPort.Port, 7, 2, 5, manageableZmi);
 
 			manager.Start();
 			Console.ReadLine();
