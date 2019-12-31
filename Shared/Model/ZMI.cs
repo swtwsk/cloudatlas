@@ -66,7 +66,7 @@ namespace Shared.Model
                 toUpdate.Attributes = attributes;
             }
 
-            UpdateContacts(father, out var _);
+            UpdateContacts(father, out _);
         }
 
         private static void UpdateContacts(ZMI zmi, out ValueSet contacts)
@@ -85,7 +85,6 @@ namespace Shared.Model
             zmi.Attributes.AddOrChange("contacts", result);
 
             contacts = result;
-//            contacts = zmi.Sons.SelectMany(son => son.Attributes.Get("contacts"))
         }
 
         public ZMI GetFather()

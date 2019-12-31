@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using CloudAtlasAgent.Modules;
+using CloudAtlasAgent.Modules.GossipStrategies;
 using CloudAtlasAgent.Modules.Messages;
 using Grpc.Core;
 using Shared.Logger;
@@ -40,7 +41,7 @@ namespace CloudAtlasAgent
             AddModule(_communication = new CommunicationModule(_executor, maxPacketSize, IPAddress.Parse(receiverHost), receiverPort, receiverTimeout));
             AddModule(_zmi = new ZMIModule(zmi, _executor));
             AddModule(_rmi = new RMIModule(_executor, new ServerPort(rmiHost, rmiPort, ServerCredentials.Insecure)));
-            AddModule(_gossip = new GossipModule(_executor, gossipTimer, retryDelay, maxRetriesCount));
+            AddModule(_gossip = new GossipModule(_executor, gossipTimer, retryDelay, maxRetriesCount, new RoundRobinGossipStrategy()));
         }
 
         public void Start()

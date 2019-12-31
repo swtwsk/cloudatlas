@@ -19,8 +19,12 @@ namespace CloudAtlasAgent.Modules
         {
             _executor = executor;
             _gossipStrategy = gossipStrategy ?? new RandomGossipStrategy();
+            
             _gossipThread = new Thread(Gossip);
             _gossipThread.Start();
+            
+            _readerThread = new Thread(ReadMessages);
+            _readerThread.Start();
 
             _gossipTimer = gossipTimer;
             _retryDelay = retryDelay;
@@ -42,6 +46,7 @@ namespace CloudAtlasAgent.Modules
         private int _timerMessageId = 0;
 
         private readonly Thread _gossipThread;
+        private readonly Thread _readerThread;
 
         private readonly IExecutor _executor;
         private readonly IGossipStrategy _gossipStrategy;
@@ -50,6 +55,8 @@ namespace CloudAtlasAgent.Modules
             new Dictionary<Guid, (ZMI, IList<ValueContact>)>();
         private readonly IDictionary<Guid, TimestampsInfo> _timestamps = new Dictionary<Guid, TimestampsInfo>();
         private readonly IDictionary<Guid, int> _retryIds = new Dictionary<Guid, int>();
+
+        private readonly BlockingCollection<IMessage> _incomingMessages = new BlockingCollection<IMessage>();
 
         private readonly BlockingCollection<(Guid, GossipMessageBase)> _incomingGossips =
             new BlockingCollection<(Guid, GossipMessageBase)>();
@@ -96,71 +103,94 @@ namespace CloudAtlasAgent.Modules
             _retryIds.Remove(guid);
         }
 
+        private void ReadMessages()
+        {
+            try
+            {
+                while (true)
+                {
+                    var message = _incomingMessages.Take();
+                    switch (message)
+                    {
+                        case ZMIResponseMessage responseMessage:
+                            lock (_zmis)
+                                _zmis.TryAdd(responseMessage.RequestGuid,
+                                    (responseMessage.Zmi, responseMessage.FallbackContacts));
+                            _incomingGossips.Add((responseMessage.RequestGuid, null));
+                            break;
+                        case GossipTimestampAskMessage gossipAskMessage:
+                            lock (_timestamps)
+                                _timestamps[gossipAskMessage.Guid] = new TimestampsInfo(gossipAskMessage.Contact,
+                                    gossipAskMessage.Level, null, gossipAskMessage.Timestamps);
+                            _executor.AddMessage(new ZMIAskMessage(GetType(), gossipAskMessage.Guid));
+                            break;
+                        case GossipTimestampResponseMessage gossipResponseMessage:
+                            var guid = gossipResponseMessage.Guid;
+
+                            lock (_timestamps)
+                            {
+                                if (!_timestamps.TryGetValue(guid, out var timestamps))
+                                {
+                                    Logger.LogError($"Could not find timestamp infos for guid {guid}");
+                                    continue;
+                                }
+                                timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
+                            }
+
+                            HaltRetry(gossipResponseMessage.Guid);
+                            _incomingGossips.Add((gossipResponseMessage.Guid, gossipResponseMessage));
+                            break;
+                        case GossipAttributesMessage gossipAttributesMessage:
+                            _incomingGossips.Add((gossipAttributesMessage.Guid, gossipAttributesMessage));
+                            break;
+                        case GossipStartMessage _:
+                            var newGuid = Guid.NewGuid();
+                            lock (_timestamps)
+                                _timestamps[newGuid] = new TimestampsInfo(null, -1, null, null);
+                            _executor.AddMessage(new ZMIAskMessage(GetType(), newGuid));
+
+                            var retryId = ++_timerMessageId;
+                            _executor.AddMessage(new TimerRetryGossipMessage(newGuid, _retryDelay, DateTimeOffset.Now,
+                                retryId));
+                            _retryIds.Add(newGuid, retryId);
+                            break;
+                        case GossipRetryMessage retryMessage:
+                            lock (_timestamps)
+                            {
+                                if (!_timestamps.TryGetValue(retryMessage.Guid, out var retryTimestamps) ||
+                                    retryTimestamps == null ||
+                                    retryTimestamps.HisTimestamps != null) // TODO: this is due to no-multicast bug
+                                    continue;
+
+                                var attempt = retryTimestamps.Attempts + 1;
+                                if (attempt == _maxRetriesCount)
+                                {
+                                    HaltRetry(retryMessage.Guid);
+                                    continue;
+                                }
+
+                                retryTimestamps.Attempts = attempt;
+                            }
+
+                            _executor.AddMessage(new TimerRetryGossipMessage(retryMessage.Guid, _retryDelay,
+                                DateTimeOffset.Now,
+                                _timerMessageId));
+                            _incomingGossips.Add((retryMessage.Guid, null));
+                            break;
+                        default:
+                            Logger.LogException(new ArgumentOutOfRangeException());
+                            break;
+                    }
+                }
+            }
+            catch (ThreadInterruptedException) {}
+            catch (ObjectDisposedException oe) { Logger.LogException(oe); }
+            catch (Exception e) { Logger.LogException(e); }
+        }
+
         public void HandleMessage(IMessage message)
         {
-            switch (message)
-            {
-                case ZMIResponseMessage responseMessage:
-                    lock (_zmis)
-                        _zmis.TryAdd(responseMessage.RequestGuid,
-                            (responseMessage.Zmi, responseMessage.FallbackContacts));
-                    _incomingGossips.Add((responseMessage.RequestGuid, null));
-                    break;
-                case GossipTimestampAskMessage gossipAskMessage:
-                    lock (_timestamps)
-                        _timestamps[gossipAskMessage.Guid] = new TimestampsInfo(gossipAskMessage.Contact,
-                            gossipAskMessage.Level, null, gossipAskMessage.Timestamps);
-                    _executor.AddMessage(new ZMIAskMessage(GetType(), gossipAskMessage.Guid));
-                    break;
-                case GossipTimestampResponseMessage gossipResponseMessage:
-                    var guid = gossipResponseMessage.Guid;
-                    TimestampsInfo timestamps;
-                    lock (_timestamps)
-                        if (!_timestamps.TryGetValue(guid, out timestamps))
-                        {
-                            Logger.LogError($"Could not find timestamp infos for guid {guid}");
-                            return;
-                        }
-                    timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
-                    HaltRetry(gossipResponseMessage.Guid);
-                    _incomingGossips.Add((gossipResponseMessage.Guid, gossipResponseMessage));
-                    break;
-                case GossipAttributesMessage gossipAttributesMessage:
-                    _incomingGossips.Add((gossipAttributesMessage.Guid, gossipAttributesMessage));
-                    break;
-                case GossipStartMessage _:
-                    var newGuid = Guid.NewGuid();
-                    lock (_timestamps)
-                        _timestamps[newGuid] = new TimestampsInfo(null, -1, null, null);
-                    _executor.AddMessage(new ZMIAskMessage(GetType(), newGuid));
-
-                    var retryId = ++_timerMessageId;
-                    _executor.AddMessage(new TimerRetryGossipMessage(newGuid, _retryDelay, DateTimeOffset.Now,
-                        retryId));
-                    _retryIds.Add(newGuid, retryId);
-                    break;
-                case GossipRetryMessage retryMessage:
-                    TimestampsInfo retryTimestamps;
-                    lock (_timestamps)
-                        if (!_timestamps.TryGetValue(retryMessage.Guid, out retryTimestamps) ||
-                            retryTimestamps.HisTimestamps != null)
-                            return;
-
-                    var attempt = retryTimestamps.Attempts + 1;
-                    if (attempt == _maxRetriesCount)
-                    {
-                        HaltRetry(retryMessage.Guid);
-                        return;
-                    }
-
-                    retryTimestamps.Attempts = attempt;
-                    _executor.AddMessage(new TimerRetryGossipMessage(retryMessage.Guid, _retryDelay, DateTimeOffset.Now,
-                        _timerMessageId));
-                    _incomingGossips.Add((retryMessage.Guid, null));
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(message));
-            }
+            _incomingMessages.Add(message);
         }
 
         private static (IList<Timestamps>, ValueContact) PrepareGossipTimestampsMessage(ZMI zmi, int level)
@@ -201,18 +231,17 @@ namespace CloudAtlasAgent.Modules
                     switch (gossipMessage)
                     {
                         case null:
-                            bool infoExists;
-                            TimestampsInfo timestampsInfo;
-                            
                             lock (_timestamps)
-                                infoExists = _timestamps.TryGetValue(guid, out timestampsInfo);
-                            
-                            var timestampsToSave = infoExists && timestampsInfo.HisTimestamps != null
-                                ? RespondTimestamps(guid, timestampsInfo, zmi)
-                                : SendInitialTimestamps(guid, zmi, fallbacks, infoExists ? timestampsInfo.Attempts : 1);
-                            
-                            lock (_timestamps)
+                            {
+                                var infoExists = _timestamps.TryGetValue(guid, out var timestampsInfo);
+
+                                var timestampsToSave = infoExists && timestampsInfo.HisTimestamps != null
+                                    ? RespondTimestamps(guid, timestampsInfo, zmi)
+                                    : SendInitialTimestamps(guid, zmi, fallbacks, infoExists ? timestampsInfo.Attempts : 1);
+
                                 _timestamps[guid] = timestampsToSave;
+                            }
+
                             break;
                         case GossipAttributesMessage gossipAttributesMessage:
                             ProcessAttributeMessage(guid, gossipAttributesMessage, zmi);
@@ -236,6 +265,7 @@ namespace CloudAtlasAgent.Modules
             {
                 Logger.Log("RandomOrDefault to do");
                 contact = fallbacks.RandomOrDefault();
+                // TODO: level here
                 if (contact == null)
                 {
                     Logger.LogWarning("No contacts at all");
@@ -243,7 +273,11 @@ namespace CloudAtlasAgent.Modules
                     return null;
                 }
             }
-                    
+            else
+            {
+                Logger.Log($"Found element at level {level}");
+            }
+
             Logger.Log($"Sending initial timestamps to {contact}");
             var (myTimestamps, myContact) = PrepareGossipTimestampsMessage(zmi, level);
             var gossipAskMsg = new GossipTimestampAskMessage(guid, myTimestamps, level, myContact);
@@ -273,37 +307,37 @@ namespace CloudAtlasAgent.Modules
 
         private void ProcessTimestampResponse(Guid guid, GossipTimestampResponseMessage timestampResponseMessage, ZMI zmi)
         {
-            TimestampsInfo timestampsInfo;
-            
             lock (_timestamps)
-                if (!_timestamps.TryGetValue(guid, out timestampsInfo))
+            {
+                if (!_timestamps.TryGetValue(guid, out var timestampsInfo))
                 {
                     Logger.LogError(
                         $"Could not find timestamps when processing GossipTimestampResponseMessage. Aborting gossiping.");
                     return;
                 }
 
-            timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
-            PrepareAndSendAttributes(guid, timestampsInfo, zmi, false);
+                timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
+                PrepareAndSendAttributes(guid, timestampsInfo, zmi, false);
+            }
         }
 
         private void ProcessAttributeMessage(Guid guid, GossipAttributesMessage attributesMessage, ZMI zmi)
         {
-            TimestampsInfo timestampsInfo;
-            
             lock (_timestamps)
-                if (!_timestamps.TryGetValue(guid, out timestampsInfo))
+            {
+                if (!_timestamps.TryGetValue(guid, out var timestampsInfo))
                 {
                     Logger.LogError(
                         $"Could not find timestamps when processing GossipTimestampResponseMessage. Aborting gossiping.");
                     return;
                 }
 
-            if (!attributesMessage.IsResponse)
-                PrepareAndSendAttributes(guid, timestampsInfo, zmi, true);
+                if (!attributesMessage.IsResponse)
+                    PrepareAndSendAttributes(guid, timestampsInfo, zmi, true);
 
-            lock (_timestamps)
                 _timestamps.Remove(guid);
+            }
+
             lock (_zmis)
                 _zmis.Remove(guid);
             
@@ -398,6 +432,8 @@ namespace CloudAtlasAgent.Modules
         {
             _gossipThread?.Interrupt();
             _incomingGossips?.Dispose();
+            _readerThread?.Interrupt();
+            _incomingMessages?.Dispose();
         }
     }
 }
