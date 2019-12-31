@@ -239,7 +239,8 @@ namespace CloudAtlasAgent.Modules
                                     ? RespondTimestamps(guid, timestampsInfo, zmi)
                                     : SendInitialTimestamps(guid, zmi, fallbacks, infoExists ? timestampsInfo.Attempts : 1);
 
-                                _timestamps[guid] = timestampsToSave;
+                                if (timestampsToSave != null)
+                                    _timestamps[guid] = timestampsToSave;
                             }
 
                             break;

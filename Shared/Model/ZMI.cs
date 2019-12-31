@@ -58,7 +58,7 @@ namespace Shared.Model
                 // do not update already fresher zmis
                 if (toUpdate.Attributes.TryGetValue("freshness", out var timestamp) &&
                     attributes.TryGetValue("freshness", out var otherTimeStamp) &&
-                    ((ValueTime) timestamp).CompareTo((ValueTime) otherTimeStamp) >= 0)
+                    ((ValueTime) timestamp).CompareTo((ValueTime) otherTimeStamp) > 0)
                 {
                     continue;
                 }
