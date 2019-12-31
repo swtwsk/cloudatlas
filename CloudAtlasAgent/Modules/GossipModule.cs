@@ -29,14 +29,18 @@ namespace CloudAtlasAgent.Modules
             _gossipTimer = gossipTimer;
             _retryDelay = retryDelay;
             _maxRetriesCount = maxRetriesCount;
-            _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
-                _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
+
+            lock (_timerMessageIdLock)
+                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
+                    _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
         }
 
         private void AddGossipTimer()
         {
-            _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
-                _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
+            Logger.Log("A D D   G O S S I P   T I M E R");
+            lock (_timerMessageIdLock)
+                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
+                    _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
             _executor.AddMessage(new GossipStartMessage());
         }
 
@@ -44,6 +48,7 @@ namespace CloudAtlasAgent.Modules
         private readonly int _retryDelay;
         private readonly int _maxRetriesCount;
         private int _timerMessageId = 0;
+        private readonly object _timerMessageIdLock = new object();
 
         private readonly Thread _gossipThread;
         private readonly Thread _readerThread;
@@ -149,7 +154,13 @@ namespace CloudAtlasAgent.Modules
                                 _timestamps[newGuid] = new TimestampsInfo(null, -1, null, null);
                             _executor.AddMessage(new ZMIAskMessage(GetType(), newGuid));
 
-                            var retryId = ++_timerMessageId;
+                            int retryId;
+                            lock (_timerMessageIdLock)
+                            {
+                                _timerMessageId++;
+                                retryId = _timerMessageId;
+                            }
+
                             _executor.AddMessage(new TimerRetryGossipMessage(newGuid, _retryDelay, DateTimeOffset.Now,
                                 retryId));
                             _retryIds.Add(newGuid, retryId);
@@ -172,9 +183,9 @@ namespace CloudAtlasAgent.Modules
                                 retryTimestamps.Attempts = attempt;
                             }
 
-                            _executor.AddMessage(new TimerRetryGossipMessage(retryMessage.Guid, _retryDelay,
-                                DateTimeOffset.Now,
-                                _timerMessageId));
+                            lock (_timerMessageIdLock)
+                                _executor.AddMessage(new TimerRetryGossipMessage(retryMessage.Guid, _retryDelay,
+                                    DateTimeOffset.Now, _timerMessageId++));
                             _incomingGossips.Add((retryMessage.Guid, null));
                             break;
                         default:

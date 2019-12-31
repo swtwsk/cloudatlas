@@ -21,7 +21,7 @@ namespace CloudAtlasAgent.Modules
 
         private readonly Sender _sender;
         private readonly Thread _senderThread;
-        
+
         private readonly Receiver _receiver;
         private readonly Thread _receiverThread;
         
@@ -47,13 +47,16 @@ namespace CloudAtlasAgent.Modules
             }
             _queue.Add(csm);
         }
-        
+
         public void Dispose()
         {
             Logger.LogWarning("Disposing CommunicationModule");
             _queue?.Dispose();
+            
             _senderThread?.Interrupt();
             _sender.Dispose();
+            
+            _receiver.interrupted = true;
             _receiverThread?.Interrupt();
             _receiver.Dispose();
         }
@@ -161,7 +164,7 @@ namespace CloudAtlasAgent.Modules
             private readonly int _receiveTimeout;
             
             private DateTimeOffset _nextRemoval;
-            
+
             public Receiver(IExecutor executor, int maxPacketSize, IPAddress address, int port, int receiveTimeout)
             {
                 if (maxPacketSize <= 9)
@@ -177,33 +180,45 @@ namespace CloudAtlasAgent.Modules
                 _nextRemoval = DateTimeOffset.Now.AddMilliseconds(receiveTimeout);
             }
 
+            public bool interrupted = false;
+
             public void Start()
             {
-                try
+                while (!interrupted)
                 {
-                    using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-                    _socket = socket;
-                    socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
-                    socket.ReceiveTimeout = _receiveTimeout;
-                    socket.Bind(new IPEndPoint(_ipAddress, _port));
-                    Receive(socket);
-                }
-                catch (ThreadInterruptedException) {}
-                catch (SocketException se)
-                {
-                    if (se.SocketErrorCode == SocketError.Interrupted)
+                    try
                     {
-                        _socket?.Dispose();
-                        return;
+                        using var socket = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+                        _socket = socket;
+                        socket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.ReuseAddress, true);
+                        socket.ReceiveTimeout = _receiveTimeout;
+                        socket.Bind(new IPEndPoint(_ipAddress, _port));
+                        Receive(socket);
                     }
+                    catch (ThreadInterruptedException)
+                    {
+                        interrupted = true;
+                    }
+                    catch (SocketException se)
+                    {
+                        if (se.SocketErrorCode == SocketError.Interrupted)
+                        {
+                            _socket?.Dispose();
+                            interrupted = true;
+                            return;
+                        }
 
-                    if (se.SocketErrorCode != SocketError.TimedOut)
-                        Logger.LogException(se);
+                        if (se.SocketErrorCode != SocketError.TimedOut)
+                            Logger.LogException(se);
 
-                    ClearOld();
-                    Start();  // TODO: High probability of StackOverflow + this finally doesn't look good
+                        ClearOld();
+                    }
+                    catch (Exception e)
+                    {
+                        Logger.LogException(e);
+                    }
+                    Thread.Sleep(50);
                 }
-                catch (Exception e) { Logger.LogException(e); }
             }
             
             private readonly byte[] _packetIdBytes = new byte[4];

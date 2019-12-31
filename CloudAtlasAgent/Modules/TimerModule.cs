@@ -36,17 +36,26 @@ namespace CloudAtlasAgent.Modules
             switch (message)
             {
                 case TimerAddCallbackMessage timerAddCallbackMessage:
-                    _priorityQueue.TryAdd(new TimerCallback(timerAddCallbackMessage));
+                    while (!_priorityQueue.TryAdd(new TimerCallback(timerAddCallbackMessage)))
+                    {
+                        Logger.LogError("Could not add TimerCallback to priorityQueue!");
+                    }
                     break;
                 case TimerRemoveCallbackMessage timerRemoveCallbackMessage:
+                    break;
                     lock (_set)
-                        _set.Add(new TimerCallback(new DateTimeOffset(), timerRemoveCallbackMessage.Source,
+                        _set.Add(new TimerCallback(timerRemoveCallbackMessage.Source,
                             timerRemoveCallbackMessage.RequestId, null));
                     break;
                 case TimerRetryGossipMessage retryGossipMessage:
-                    _priorityQueue.TryAdd(new TimerCallback(retryGossipMessage.TimeStamp, typeof(GossipModule),
+                    _priorityQueue.TryAdd(new TimerCallback(
+                        TimerCallback.ComputeDelayedTimestamp(retryGossipMessage.TimeStamp, retryGossipMessage.Delay),
+                        typeof(GossipModule),
                         retryGossipMessage.RequestId,
-                        () => { _executor.AddMessage(new GossipRetryMessage(GetType(), retryGossipMessage.Guid)); }));
+                        () =>
+                        {
+                            _executor.AddMessage(new GossipRetryMessage(typeof(GossipModule), retryGossipMessage.Guid));
+                        }));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));
@@ -67,10 +76,13 @@ namespace CloudAtlasAgent.Modules
             private int RequestId { get; }
 
             public TimerCallback(TimerAddCallbackMessage message) : this(
-                DateTimeOffset.Now.Add(message.TimeFrom - DateTimeOffset.Now + TimeSpan.FromSeconds(message.Delay)),
+                ComputeDelayedTimestamp(message.TimeFrom, message.Delay),
                 message.Source,
                 message.RequestId,
                 message.Callback) {}
+
+            public TimerCallback(Type sender, int requestId, Action callback) 
+                : this(new DateTimeOffset(), sender, requestId, callback) {}
 
             public TimerCallback(DateTimeOffset delay, Type sender, int requestId, Action callback)
             {
@@ -79,6 +91,9 @@ namespace CloudAtlasAgent.Modules
                 RequestId = requestId;
                 Callback = callback;
             }
+
+            public static DateTimeOffset ComputeDelayedTimestamp(DateTimeOffset timestamp, int delay) =>
+                DateTimeOffset.Now.Add(timestamp - DateTimeOffset.Now + TimeSpan.FromSeconds(delay));
 
             public int CompareTo(object? obj)
             {
@@ -116,10 +131,14 @@ namespace CloudAtlasAgent.Modules
                     while (true)
                     {
                         var callback = _priorityQueue.Take();
-                        Logger.Log($"Took {callback} out of priorityQueue");
+                        Logger.Log($"Took {callback.Callback.Method} out of priorityQueue");
                         var toSleep = callback.Delay - DateTimeOffset.Now;
                         if (toSleep.TotalMilliseconds > 0)
-                            Thread.Sleep(toSleep);  // TODO: Now it does not work
+                        {
+                            Logger.Log($"'bout to sleep {toSleep.TotalSeconds} seconds");
+                            Thread.Sleep(toSleep); // TODO: Now it does not work
+                        }
+
                         lock (_set)
                         {
                             if (_set.Remove(callback))

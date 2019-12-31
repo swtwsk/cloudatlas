@@ -13,8 +13,10 @@ namespace Shared.Logger
         {
             var printablePath = LoggerVerbosity == LoggerVerbosity.WithoutFilePath
                 ? ""
-                : ", " + (LoggerVerbosity == LoggerVerbosity.WithFileName ? filePath.Split("\\").Last() : filePath);
-            Console.WriteLine($"{logName}, {memberName}{printablePath}: {message}");
+                : ", " + (LoggerVerbosity == LoggerVerbosity.WithFileName
+                      ? filePath.Split(new char[] {'\\', '/'}).Last()
+                      : filePath);
+            Console.WriteLine($"{logName}, {DateTime.Now.ToLongTimeString()}, {memberName}{printablePath}: {message}");
         }
         
         public static void Log(string message,
