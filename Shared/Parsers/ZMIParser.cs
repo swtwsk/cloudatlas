@@ -41,7 +41,7 @@ namespace Shared.Parsers
             return true;
         }
 
-        private static bool TryParseZoneLine(string line, ZMI root, out ZMI result)
+        public static bool TryParseZoneLine(string line, ZMI root, out ZMI result)
         {
             var lastSlash = line.LastIndexOf('/');
             ZMI father = null;

@@ -48,9 +48,6 @@ namespace CloudAtlasAgent.Modules
             _serverThread = new Thread(_server.Start);
             _serverThread.Start();
         }
-        private RMIModule() {}
-        private RMIModule _voidInstance;
-        public IModule VoidInstance => _voidInstance ??= new RMIModule();
 
         public void Dispose()
         {

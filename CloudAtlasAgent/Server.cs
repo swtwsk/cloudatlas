@@ -76,9 +76,16 @@ namespace CloudAtlasAgent
 			Logger.LoggerLevel = LoggerLevel.All;
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 
+			var creationTimestamp = new ValueTime(DateTimeOffset.Now);
 			var manageableZmi = _zmi;
 			while (manageableZmi.Sons.Any())
+			{
+//				manageableZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
+				manageableZmi.Attributes.AddOrChange("freshness", creationTimestamp);  // TODO: For now, remove it after
 				manageableZmi = manageableZmi.Sons.First();
+			}
+			manageableZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
+			manageableZmi.Attributes.AddOrChange("freshness", creationTimestamp);
 
 			using var manager = new ModulesManager(2000, serverPort.Host, serverPort.Port + 1, 3000, serverPort.Host,
 				serverPort.Port, 3, manageableZmi);

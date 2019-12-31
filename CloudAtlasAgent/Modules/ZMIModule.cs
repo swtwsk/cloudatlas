@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using CloudAtlasAgent.Modules.Messages;
 using CloudAtlasAgent.Modules.Messages.ZMIMessages;
 using Shared.Logger;
@@ -22,19 +24,46 @@ namespace CloudAtlasAgent.Modules
         {
             _zmi = zmi;
             _executor = executor;
+            _gossipProcessor = new Thread(ProcessGossipedMessage);
+            _gossipProcessor.Start();
         }
-        
-        private ZMIModule() {}
-        
-        private ZMIModule _voidInstance;
-        public IModule VoidInstance => _voidInstance ??= new ZMIModule();
 
         public bool Equals(IModule other) => other is ZMIModule;
         public override bool Equals(object? obj) => obj != null && Equals(obj as ZMIModule);
         public override int GetHashCode() => "ZMI".GetHashCode();
 
+        private readonly Thread _gossipProcessor;
+        private readonly BlockingCollection<List<(PathName, AttributesMap)>> _gossipedMessages =
+	        new BlockingCollection<List<(PathName, AttributesMap)>>();
+
         public void Dispose()
         {
+	        _gossipProcessor?.Interrupt();
+	        _gossipedMessages?.Dispose();
+        }
+
+        private void ProcessGossipedMessage()
+        {
+	        try
+	        {
+		        while (true)
+		        {
+			        var gossip = _gossipedMessages.Take();
+			        Logger.Log($"Processing gossiped message :)\n");
+			        
+			        lock (_zmiLock)
+			        {
+				        _zmi.UpdateZMI(gossip);
+				        
+				        // TODO: REMOVE THIS!
+				        Logger.Log($"Updated ZMI {_zmi}");
+				        Logger.Log("\n" + _zmi.GetFather().PrintAttributes());
+			        }
+		        }
+	        }
+	        catch (ThreadInterruptedException) {}
+	        catch (ObjectDisposedException) {}
+	        catch (Exception e) { Logger.LogException(e); }
         }
 
         public void HandleMessage(IMessage message)
@@ -47,9 +76,9 @@ namespace CloudAtlasAgent.Modules
 		        return;
 	        }
 
-	        if (message is ZMIProcessGossipedMessage processGossipedMessage)
+	        if (message is ZMIProcessGossipedMessage gossipedMessage)
 	        {
-		        Logger.Log("Processing gossiped message :)");
+		        _gossipedMessages.Add(gossipedMessage.Gossiped);
 		        return;
 	        }
 	        

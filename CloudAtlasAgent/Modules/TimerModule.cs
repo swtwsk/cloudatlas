@@ -27,11 +27,6 @@ namespace CloudAtlasAgent.Modules
             _sleeperThread.Start();
         }
         
-        private TimerModule(bool isVoidInstance) {}  // ugly hack to achieve what I want
-        
-        private TimerModule _voidInstance;
-        public IModule VoidInstance => _voidInstance ??= new TimerModule(true);
-
         public void HandleMessage(IMessage message)
         {
             switch (message)

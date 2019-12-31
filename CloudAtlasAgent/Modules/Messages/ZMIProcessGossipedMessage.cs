@@ -10,11 +10,11 @@ namespace CloudAtlasAgent.Modules.Messages
         public Type Destination { get; private set; } = typeof(ZMIModule);
         public MessageType MessageType => MessageType.ZMIAsk;
         
-        public IList<(PathName, AttributesMap)> Gossiped { get; private set; }
+        public List<(PathName, AttributesMap)> Gossiped { get; private set; }
         
         private ZMIProcessGossipedMessage() {}
 
-        public ZMIProcessGossipedMessage(Type source, IList<(PathName, AttributesMap)> gossiped)
+        public ZMIProcessGossipedMessage(Type source, List<(PathName, AttributesMap)> gossiped)
         {
             Source = source;
             Gossiped = gossiped;

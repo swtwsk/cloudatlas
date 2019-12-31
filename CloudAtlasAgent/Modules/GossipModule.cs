@@ -14,8 +14,6 @@ namespace CloudAtlasAgent.Modules
 {
     public class GossipModule : IModule
     {
-        private GossipModule() {}
-
         public GossipModule(IExecutor executor, int gossipTimer, IGossipStrategy gossipStrategy = null)
         {
             _executor = executor;
@@ -38,9 +36,6 @@ namespace CloudAtlasAgent.Modules
         private readonly int _gossipTimer;
         private int _timerMessageId = 0;
 
-        private GossipModule _voidInstance;
-        public IModule VoidInstance => _voidInstance ??= new GossipModule();
-
         private readonly Thread _gossipThread;
 
         private readonly IExecutor _executor;
@@ -50,7 +45,7 @@ namespace CloudAtlasAgent.Modules
             new Dictionary<Guid, (ZMI, IList<ValueContact>)>();
         private readonly IDictionary<Guid, TimestampsInfo> _timestamps = new Dictionary<Guid, TimestampsInfo>();
 
-        private readonly BlockingCollection<(Guid, GossipMessageBase)> _forThread =
+        private readonly BlockingCollection<(Guid, GossipMessageBase)> _incomingGossips =
             new BlockingCollection<(Guid, GossipMessageBase)>();
 
         private class TimestampsInfo
@@ -89,7 +84,7 @@ namespace CloudAtlasAgent.Modules
             {
                 case ZMIResponseMessage responseMessage:
                     _zmis.TryAdd(responseMessage.RequestGuid, (responseMessage.Zmi, responseMessage.FallbackContacts));
-                    _forThread.Add((responseMessage.RequestGuid, null));
+                    _incomingGossips.Add((responseMessage.RequestGuid, null));
                     break;
                 case GossipTimestampAskMessage gossipAskMessage:
                     _timestamps.Add(gossipAskMessage.Guid,
@@ -105,10 +100,10 @@ namespace CloudAtlasAgent.Modules
                         return;
                     }
                     timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
-                    _forThread.Add((gossipResponseMessage.Guid, gossipResponseMessage));
+                    _incomingGossips.Add((gossipResponseMessage.Guid, gossipResponseMessage));
                     break;
                 case GossipAttributesMessage gossipAttributesMessage:
-                    _forThread.Add((gossipAttributesMessage.Guid, gossipAttributesMessage));
+                    _incomingGossips.Add((gossipAttributesMessage.Guid, gossipAttributesMessage));
                     break;
                 case GossipStartMessage _:
                     _executor.AddMessage(new ZMIAskMessage(GetType(), Guid.NewGuid()));
@@ -140,7 +135,7 @@ namespace CloudAtlasAgent.Modules
             {
                 while (true)
                 {
-                    var (guid, gossipMessage) = _forThread.Take();
+                    var (guid, gossipMessage) = _incomingGossips.Take();
                     if (!_zmis.TryGetValue(guid, out var zmiPair))
                     {
                         Logger.LogError($"Could not find zmi for guid {guid}, aborting gossiping then");
@@ -254,7 +249,7 @@ namespace CloudAtlasAgent.Modules
         }
 
         // TODO: Remove hisZmis
-        private (IList<(PathName, AttributesMap)> myAttributes, IList<PathName> hisZmis)
+        private static (List<(PathName, AttributesMap)> myAttributes, IList<PathName> hisZmis)
             ExtractInterestingAttributes(ZMI zmi, IEnumerable<Timestamps> myTimestamps,
                 IEnumerable<Timestamps> hisTimestamps)
         {
@@ -311,6 +306,18 @@ namespace CloudAtlasAgent.Modules
                 }
             }
 
+            while (i < mySortedTimestamps.Count)
+            {
+                ExtractAndSaveMyAttr();
+                i++;
+            }
+
+            while (j < hisSortedTimestamps.Count)
+            {
+                hisZmis.Add(hisSortedTimestamps[j].PathName);
+                j++;
+            }
+
             return (myAttributes, hisZmis);
         }
 
@@ -334,7 +341,7 @@ namespace CloudAtlasAgent.Modules
         public void Dispose()
         {
             _gossipThread?.Interrupt();
-            _forThread?.Dispose();
+            _incomingGossips?.Dispose();
         }
     }
 }

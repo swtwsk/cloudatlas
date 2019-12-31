@@ -5,7 +5,7 @@ using TimeZoneConverter;
 
 namespace Shared.Model
 {
-    public class ValueTime : ValueSimple<RefStruct<long>>
+    public class ValueTime : ValueSimple<RefStruct<long>>, IComparable, IComparable<ValueTime>
     {
         private const string ReadTimeFormat = "yyyy/M/dd H:m:ss.fff";
         private const string PrintTimeFormat = "yyyy/MM/dd HH:mm:ss.fff";
@@ -73,6 +73,25 @@ namespace Shared.Model
         }
 
         public override Value GetDefaultValue() => new ValueTime(0L);
+        public int CompareTo(object obj) => obj == null ? 1 :
+            obj is ValueTime other ? CompareTo(other) :
+            throw new ArgumentException("obj is not the same type as instance");
+        
+        public int CompareTo(ValueTime other)
+        {
+            var isOtherNull = other == null || other.IsNull;
+            
+            if (IsNull)
+                return isOtherNull ? 0 : -1;
+
+            if (isOtherNull)
+                return 1;
+            
+            var isLower = ((ValueBoolean) IsLowerThan(other)).Value.Ref;
+            var isEqual = ((ValueBoolean) IsEqual(other)).Value.Ref;
+
+            return isEqual ? 0 : isLower ? -1 : 1;
+        }
     }
 
     public static class TimeUtils

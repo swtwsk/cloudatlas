@@ -1,10 +1,7 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
-using System.IO;
 using System.Linq;
 using System.Text;
-using Shared.Monads;
 using Shared.Parsers;
 
 namespace Shared.Model
@@ -42,6 +39,55 @@ namespace Shared.Model
             return HashCode.Combine(PathName, Father);
         }
 
+        public void UpdateZMI(List<(PathName, AttributesMap)> updates)
+        {
+            var father = GetFather();
+            updates.Sort((tuple1, tuple2) => tuple1.Item1.CompareTo(tuple2.Item1));
+            foreach (var (pathName, attributes) in updates)
+            {
+                var strPathName = pathName.ToString();
+                if (!father.TrySearch(strPathName, out var toUpdate))
+                {
+                    if (!ZMIParser.TryParseZoneLine(strPathName, father, out toUpdate))
+                    {
+                        Logger.Logger.LogError($"Could not parse {strPathName}");
+                        continue;
+                    }
+                }
+
+                // do not update already fresher zmis
+                if (toUpdate.Attributes.TryGetValue("freshness", out var timestamp) &&
+                    attributes.TryGetValue("freshness", out var otherTimeStamp) &&
+                    ((ValueTime) timestamp).CompareTo((ValueTime) otherTimeStamp) >= 0)
+                {
+                    continue;
+                }
+
+                toUpdate.Attributes = attributes;
+            }
+
+            UpdateContacts(father, out var _);
+        }
+
+        private static void UpdateContacts(ZMI zmi, out ValueSet contacts)
+        {
+            var result = new ValueSet(AttributeTypePrimitive.Contact);
+            
+            foreach (var son in zmi.Sons)
+            {
+                UpdateContacts(son, out var sonContacts);
+                result.UnionWith(sonContacts);
+            }
+
+            if (zmi.Attributes.TryGetValue("contacts", out var attrContacts) && attrContacts is ValueSet zmiContacts)
+                result.UnionWith(zmiContacts);
+            
+            zmi.Attributes.AddOrChange("contacts", result);
+
+            contacts = result;
+//            contacts = zmi.Sons.SelectMany(son => son.Attributes.Get("contacts"))
+        }
+
         public ZMI GetFather()
         {
             var currentZmi = this;
@@ -61,9 +107,9 @@ namespace Shared.Model
             }
             while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
             {
-                result.Add(currentZmi.Attributes.TryGetValue("timestamp", out var timestamp)
-                    ? new Timestamps(currentZmi.PathName, Maybe<ValueTime>.Nothing)
-                    : new Timestamps(currentZmi.PathName, (ValueTime) timestamp));
+                result.Add(currentZmi.Attributes.TryGetValue("freshness", out var timestamp)
+                    ? new Timestamps(currentZmi.PathName, (ValueTime) timestamp)
+                    : new Timestamps(currentZmi.PathName, null));
                 currentZmi = currentZmi.Father;
             }
 
@@ -113,9 +159,10 @@ namespace Shared.Model
         public string PrintAttributes()
         {
             var sb = new StringBuilder();
-            
+
+            sb.AppendLine(PathName.ToString());
             foreach (var (key, value) in Attributes)
-                sb.AppendLine($"{key} : {value.AttributeType} = {value}");
+                sb.AppendLine($"    {key} : {value.AttributeType} = {value}");
             sb.AppendLine();
             foreach (var son in Sons)
                 sb.Append(son.PrintAttributes());

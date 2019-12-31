@@ -40,6 +40,8 @@ namespace Shared.Model
             return Name.Equals(valueContact.Name) && Address.Equals(valueContact.Address) && Port == valueContact.Port;
         }
 
+        public override int GetHashCode() => HashCode.Combine(Name, Address, Port);
+
         public override Value GetDefaultValue() => new ValueContact(null, null);
     }
 }

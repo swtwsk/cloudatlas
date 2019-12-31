@@ -7,7 +7,7 @@ using Ceras;
 
 namespace Shared.Model
 {
-    public class PathName
+    public class PathName : IComparable, IComparable<PathName>
     {
         public static PathName Root = new PathName("/");
 
@@ -75,6 +75,8 @@ namespace Shared.Model
 
         public override int GetHashCode() => Name.GetHashCode();
 
+        public int CompareTo(PathName other) => other == null ? 1 : string.CompareOrdinal(ToString(), other.ToString());
+
         public override bool Equals(object obj)
         {
             if (obj == null || GetType() != obj.GetType())
@@ -83,5 +85,9 @@ namespace Shared.Model
         }
 
         public override string ToString() => Name.Equals("") ? "/" : Name;
+
+        public int CompareTo(object obj) => obj == null ? 1 :
+            obj is PathName other ? CompareTo(other) :
+            throw new ArgumentException("obj is not the same type as instance");
     }
 }
