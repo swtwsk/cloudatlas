@@ -52,13 +52,7 @@ namespace CloudAtlasAgent.Modules
 			        Logger.Log($"Processing gossiped message :)\n");
 			        
 			        lock (_zmiLock)
-			        {
 				        _zmi.UpdateZMI(gossip);
-				        
-				        // TODO: REMOVE THIS!
-//				        Logger.Log($"Updated ZMI {_zmi}");
-//				        Logger.Log("\n" + _zmi.GetFather().PrintAttributes());
-			        }
 		        }
 	        }
 	        catch (ThreadInterruptedException) {}

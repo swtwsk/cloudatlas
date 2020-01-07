@@ -223,8 +223,10 @@ namespace CloudAtlasAgent.Modules
         public bool TryTake(out T item)
         {
             item = default;
+            bool accomplished;
             lock (_lock)
-                return _queue.TryPop(out item);
+                accomplished = _queue.TryPop(out item);
+            return accomplished;
         }
 
         public IEnumerator<T> GetEnumerator()

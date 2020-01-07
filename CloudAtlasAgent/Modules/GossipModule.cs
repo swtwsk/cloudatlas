@@ -37,7 +37,6 @@ namespace CloudAtlasAgent.Modules
 
         private void AddGossipTimer()
         {
-            Logger.Log("A D D   G O S S I P   T I M E R");
             lock (_timerMessageIdLock)
                 _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
                     _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
@@ -157,8 +156,7 @@ namespace CloudAtlasAgent.Modules
                             int retryId;
                             lock (_timerMessageIdLock)
                             {
-                                _timerMessageId++;
-                                retryId = _timerMessageId;
+                                retryId = _timerMessageId++;
                             }
 
                             _executor.AddMessage(new TimerRetryGossipMessage(newGuid, _retryDelay, DateTimeOffset.Now,

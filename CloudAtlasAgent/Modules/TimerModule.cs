@@ -37,12 +37,9 @@ namespace CloudAtlasAgent.Modules
             {
                 case TimerAddCallbackMessage timerAddCallbackMessage:
                     while (!_priorityQueue.TryAdd(new TimerCallback(timerAddCallbackMessage)))
-                    {
                         Logger.LogError("Could not add TimerCallback to priorityQueue!");
-                    }
                     break;
                 case TimerRemoveCallbackMessage timerRemoveCallbackMessage:
-                    break;
                     lock (_set)
                         _set.Add(new TimerCallback(timerRemoveCallbackMessage.Source,
                             timerRemoveCallbackMessage.RequestId, null));
