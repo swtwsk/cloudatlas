@@ -19,6 +19,7 @@ namespace CloudAtlasAgent.Modules
         private readonly BlockingCollection<TimerCallback> _priorityQueue =
             new BlockingCollection<TimerCallback>(new BlockingPriorityQueue<TimerCallback>());
         private readonly ISet<TimerCallback> _set = new HashSet<TimerCallback>();
+        private readonly AutoResetEvent _resetEvent = new AutoResetEvent(false);
         private readonly Thread _sleeperThread;
 
         private readonly IExecutor _executor;
@@ -26,7 +27,7 @@ namespace CloudAtlasAgent.Modules
         public TimerModule(IExecutor executor)
         {
             _executor = executor;
-            var sleeper = new Sleeper(_priorityQueue, _set);
+            var sleeper = new Sleeper(_priorityQueue, _set, _resetEvent);
             _sleeperThread = new Thread(sleeper.Start);
             _sleeperThread.Start();
         }
@@ -36,8 +37,7 @@ namespace CloudAtlasAgent.Modules
             switch (message)
             {
                 case TimerAddCallbackMessage timerAddCallbackMessage:
-                    while (!_priorityQueue.TryAdd(new TimerCallback(timerAddCallbackMessage)))
-                        Logger.LogError("Could not add TimerCallback to priorityQueue!");
+                    AddToQueue(new TimerCallback(timerAddCallbackMessage));
                     break;
                 case TimerRemoveCallbackMessage timerRemoveCallbackMessage:
                     lock (_set)
@@ -45,18 +45,23 @@ namespace CloudAtlasAgent.Modules
                             timerRemoveCallbackMessage.RequestId, null));
                     break;
                 case TimerRetryGossipMessage retryGossipMessage:
-                    _priorityQueue.TryAdd(new TimerCallback(
+                    AddToQueue(new TimerCallback(
                         TimerCallback.ComputeDelayedTimestamp(retryGossipMessage.TimeStamp, retryGossipMessage.Delay),
                         typeof(GossipModule),
                         retryGossipMessage.RequestId,
-                        () =>
-                        {
-                            _executor.AddMessage(new GossipRetryMessage(typeof(GossipModule), retryGossipMessage.Guid));
-                        }));
+                        () => _executor.AddMessage(
+                            new GossipRetryMessage(typeof(GossipModule), retryGossipMessage.Guid))));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(nameof(message));
             }
+        }
+
+        private void AddToQueue(TimerCallback timerCallback)
+        {
+            while (!_priorityQueue.TryAdd(timerCallback))
+                Logger.LogError("Could not add TimerCallback to priorityQueue!");
+            _resetEvent.Set();
         }
         
         public void Dispose()
@@ -114,11 +119,14 @@ namespace CloudAtlasAgent.Modules
         {
             private readonly BlockingCollection<TimerCallback> _priorityQueue;
             private readonly ISet<TimerCallback> _set;
+            private readonly AutoResetEvent _resetEvent;
 
-            public Sleeper(BlockingCollection<TimerCallback> priorityQueue, ISet<TimerCallback> set)
+            public Sleeper(BlockingCollection<TimerCallback> priorityQueue, ISet<TimerCallback> set, 
+                AutoResetEvent resetEvent)
             {
                 _priorityQueue = priorityQueue;
                 _set = set;
+                _resetEvent = resetEvent;
             }
 
             public void Start()
@@ -129,11 +137,33 @@ namespace CloudAtlasAgent.Modules
                     {
                         var callback = _priorityQueue.Take();
                         Logger.Log($"Took {callback.Callback.Method} out of priorityQueue");
-                        var toSleep = callback.Delay - DateTimeOffset.Now;
-                        if (toSleep.TotalMilliseconds > 0)
+                        
+                        while (true)
                         {
-                            Logger.Log($"'bout to sleep {toSleep.TotalSeconds} seconds");
-                            Thread.Sleep(toSleep); // TODO: Now it does not work
+                            var toSleep = callback.Delay - DateTimeOffset.Now;
+                            if (toSleep.TotalMilliseconds <= 0)
+                                break;
+                            
+                            Logger.Log($"About to sleep {toSleep.TotalSeconds} seconds");
+                            if (_resetEvent.WaitOne(toSleep))
+                            {
+                                if (!_priorityQueue.TryTake(out var newCallback))
+                                    continue;
+
+                                if (newCallback.Delay >= callback.Delay)
+                                {
+                                    while (!_priorityQueue.TryAdd(newCallback)) {}
+                                    continue;
+                                }
+
+                                while (!_priorityQueue.TryAdd(callback)) {}
+
+                                callback = newCallback;
+                            }
+                            else
+                            {
+                                break;  // uninterrupted sleep
+                            }
                         }
 
                         lock (_set)
@@ -141,6 +171,7 @@ namespace CloudAtlasAgent.Modules
                             if (_set.Remove(callback))
                                 continue;
                         }
+                        
                         callback.Callback();
                     }
                 }

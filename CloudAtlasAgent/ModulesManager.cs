@@ -2,7 +2,6 @@ using System;
 using System.Net;
 using CloudAtlasAgent.Modules;
 using CloudAtlasAgent.Modules.GossipStrategies;
-using CloudAtlasAgent.Modules.Messages;
 using Grpc.Core;
 using Shared.Logger;
 using Shared.Model;
