@@ -103,7 +103,7 @@ namespace CloudAtlasAgent.Modules
                     throw new ArgumentOutOfRangeException(nameof(message));
             }
         }
-        
+
         private void GetZones(GetZonesRequestMessage requestMessage)
         {
             Logger.Log("GetZones");
@@ -118,7 +118,7 @@ namespace CloudAtlasAgent.Modules
             }
             
             lock(_zmiLock)
-                GetRecursiveZones(_zmi);
+                GetRecursiveZones(_zmi.GetFather());
 
             _executor.AddMessage(new GetZonesResponseMessage(GetType(), requestMessage.Source, requestMessage, set));
         }
@@ -129,7 +129,7 @@ namespace CloudAtlasAgent.Modules
 
             AttributesMap toReturn;
             lock (_zmiLock)
-                toReturn = _zmi.TrySearch(requestMessage.PathName, out var zmi) ? zmi.Attributes : null;
+                toReturn = _zmi.GetFather().TrySearch(requestMessage.PathName, out var zmi) ? zmi.Attributes : null;
 
             _executor.AddMessage(new GetAttributesResponseMessage(GetType(), requestMessage.Source, requestMessage,
                 toReturn));
@@ -161,20 +161,39 @@ namespace CloudAtlasAgent.Modules
 	        var name = q[0];
 	        var innerQueries = q[1];
 
+	        bool queryExecuted;
+
+	        // I need to keep this lock that long (unfortunately), otherwise I would not be able to fallback
 	        lock (_queriesLock)
 	        {
 		        if (!_queries.TryAdd(name, innerQueries))
 		        {
-			        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
+			        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
+				        requestMessage,
 				        false));
 			        return;
 		        }
+
+		        lock (_zmiLock)
+		        {
+			        try
+			        {
+				        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), innerQueries);
+				        queryExecuted = true;
+			        }
+			        catch (Exception e)
+			        {
+				        Logger.LogException(e);
+				        queryExecuted = false;
+			        }
+		        }
+
+		        // The Fallback
+		        if (!queryExecuted)
+			        _queries.Remove(name);
 	        }
 
-	        lock (_zmiLock)
-		        Interpreter.Interpreter.ExecuteQueries(_zmi, innerQueries);
-
-	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
+	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, queryExecuted));
         }
 
         private void UninstallQuery(UninstallQueryRequestMessage requestMessage)
@@ -196,7 +215,7 @@ namespace CloudAtlasAgent.Modules
 
 			lock (_zmiLock)
 			{
-				if (!_zmi.TrySearch(pathName, out var zmi))
+				if (!_zmi.GetFather().TrySearch(pathName, out var zmi))
 					_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage,
 						false));
 
@@ -205,7 +224,7 @@ namespace CloudAtlasAgent.Modules
 				lock (_queriesLock)
 				{
 					foreach (var query in _queries.Values)
-						Interpreter.Interpreter.ExecuteQueries(_zmi, query);
+						Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);
 				}
 			}
 

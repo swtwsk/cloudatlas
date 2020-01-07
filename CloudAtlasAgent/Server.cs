@@ -1,6 +1,5 @@
 ﻿using System;
 using System.IO;
-using System.Linq;
 using CommandLine;
 using Grpc.Core;
 using Shared.Logger;
@@ -11,8 +10,6 @@ namespace CloudAtlasAgent
 {
 	public class Server
 	{
-		private static ZMI _zmi;
-
 		class Options
 		{
 			[Option('h', "host", Default = "127.0.0.1", HelpText = "Server host name")]
@@ -24,14 +21,8 @@ namespace CloudAtlasAgent
 			[Option('c', "config", Default = "zmis.txt", HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
 			
-			[Option('l', "log", Default = false, HelpText = "Enable logging of incoming RMIs")]
-			public bool Log { get; set; }
-			
-			[Option('d', Default = "127.0.0.1", HelpText = "Destination hostname of test message")]
-			public string DestName { get; set; }
-			
-			[Option('f', Default = 1234, HelpText = "Destination port of test message")]
-			public int DestPort { get; set; }
+			[Option('n', "name", Required = true, HelpText = "Name of ZMI node")]
+			public string ZmiName { get; set; }
 		}
 
 		private static bool TryParseConfig(string pathToConfig, out ZMI zmi)
@@ -55,16 +46,23 @@ namespace CloudAtlasAgent
 		public static void Main(string[] args)
 		{
 			ServerPort serverPort = null;
-			var pair = (string.Empty, -1);
-			
+			var zmiName = string.Empty;
+			var receiverHost = string.Empty;
+			var receiverPort = 0;
+
+			ZMI fatherZmi = null;
+
 			Parser.Default.ParseArguments<Options>(args)
 				.WithParsed(opts =>
 				{
-					if (!TryParseConfig(opts.ConfigFile, out _zmi))
+					if (!TryParseConfig(opts.ConfigFile, out fatherZmi))
 						Environment.Exit(1);
 					serverPort = new ServerPort(opts.HostName.Trim(' '), opts.PortNumber, ServerCredentials.Insecure);
-					pair = (opts.DestName.Trim(' '), opts.DestPort);
-//					_log = opts.Log;
+					zmiName = opts.ZmiName.Trim(' ');
+
+					// TODO: CHANGE IT!
+					receiverHost = serverPort.Host;
+					receiverPort = serverPort.Port + 1;
 				})
 				.WithNotParsed(errs =>
 				{
@@ -77,22 +75,23 @@ namespace CloudAtlasAgent
 			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 
 			var creationTimestamp = new ValueTime(DateTimeOffset.Now);
-			var manageableZmi = _zmi;
-			while (manageableZmi.Sons.Any())
+			
+			fatherZmi.ApplyForEach(zmi => zmi.Attributes.AddOrChange("freshness", creationTimestamp)); // TODO: For now, remove it after
+			if (!fatherZmi.TrySearch(zmiName, out var myZmi))
 			{
-//				manageableZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
-				manageableZmi.Attributes.AddOrChange("freshness", creationTimestamp);  // TODO: For now, remove it after
-				manageableZmi = manageableZmi.Sons.First();
+				Console.WriteLine($"Could not find node {zmiName} in ZMIs");
+				Environment.Exit(1);
 			}
-			manageableZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
-			manageableZmi.Attributes.AddOrChange("freshness", creationTimestamp);
+			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
 
-			using var manager = new ModulesManager(2000, serverPort.Host, serverPort.Port + 1, 3000, serverPort.Host,
-				serverPort.Port, 7, 2, 5, manageableZmi);
+			var manager = new ModulesManager(2000, receiverHost, receiverPort, 3000, serverPort.Host,
+				serverPort.Port, 7, 2, 5, myZmi);
 
-			manager.Start();
+			Console.WriteLine($"Agent started on {receiverHost}:{receiverPort}\nRPC started on {serverPort.Host}:{serverPort.Port}");
+			Console.WriteLine("Press ENTER to exit...");
 			Console.ReadLine();
 			Console.WriteLine("End");
+			manager.Dispose();
 		}
 	}
 }

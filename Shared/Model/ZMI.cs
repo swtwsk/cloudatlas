@@ -168,6 +168,13 @@ namespace Shared.Model
 
             return sb.ToString();
         }
+
+        public void ApplyForEach(Action<ZMI> func)
+        {
+            func(this);
+            foreach (var son in Sons)
+                son.ApplyForEach(func);
+        }
         
         public object Clone()
         {

@@ -1,0 +1,24 @@
+/
+    level : integer = 0
+    name : string = null
+/pjwstk
+    level : integer = 1
+    name : string = "pjwstk"
+    contacts : set of 1 contact = {PJ1 127.0.0.1 5575}
+/pjwstk/whatever02
+    level : integer = 2
+    name : string = "whatever02"
+    owner : string = "/pjwstk/whatever02"
+    timestamp : time = 2012/11/09 21:12:00.000
+    contacts : set of 1 contact = {PJ2 127.0.0.1 5585}
+    cardinality : integer = 1
+    members : set of 1 contact = {PJ2 127.0.0.1 5585}
+    creation : time = 2012/10/18 07:03:00.000
+    cpu_usage : double = 0.1
+    num_cores : integer = 7
+    num_processes : integer = 215
+    php_modules : list of 1 string = ["rebind"]
+/pjwstk/whatever01
+    level : integer = 2
+    name : string = "whatever01"
+    contacts : set of 1 contact = {PJ1 127.0.0.1 5575}

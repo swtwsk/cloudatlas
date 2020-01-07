@@ -44,39 +44,9 @@ namespace CloudAtlasAgent
             AddModule(_gossip = new GossipModule(_executor, gossipTimer, retryDelay, maxRetriesCount, new RoundRobinGossipStrategy()));
         }
 
-        public void Start()
-        {
-            //TestModule();
-        }
-
         public void Dispose()
         {
             _registry.Dispose();
-        }
-
-        private static void PrintTest()
-        {
-            Console.WriteLine($"TEST ME");
-        }
-
-        private void TestModule()
-        {
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 0, 1, DateTimeOffset.Now, 
-                PrintTest));
-
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 0, 8, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 0")));
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 1, 8, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 1")));
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 2, 1, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 2")));
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 3, 4, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 3")));
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 4, 2, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 4")));
-            _executor.AddMessage(new TimerAddCallbackMessage(typeof(DummyModule), typeof(TimerModule), 5, 4, DateTimeOffset.Now,
-                () => Console.WriteLine("TEST ME 5")));
-            _executor.AddMessage(new TimerRemoveCallbackMessage(typeof(DummyModule), typeof(TimerModule), 3));
         }
     }
 }
