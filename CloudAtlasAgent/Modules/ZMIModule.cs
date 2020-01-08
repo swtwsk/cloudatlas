@@ -17,13 +17,17 @@ namespace CloudAtlasAgent.Modules
         private readonly Dictionary<string, string> _queries = new Dictionary<string, string>();
         private ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
         private readonly int _recomputeTimer;
+        private readonly int _purgeTimer;
         private int _timerRequestId = 0;
+
+        private const string CARDINALITY_QUERY = "SELECT sum(cardinality) AS cardinality";
         
-        public ZMIModule(ZMI zmi, int recomputeTimer, IExecutor executor)
+        public ZMIModule(ZMI zmi, int recomputeTimer, int purgeTimer, IExecutor executor)
         {
             _zmi = zmi;
             _executor = executor;
             _recomputeTimer = recomputeTimer;
+            _purgeTimer = purgeTimer;
             
             PrepareZMI();
             
@@ -32,6 +36,8 @@ namespace CloudAtlasAgent.Modules
 
             _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _recomputeTimer,
 	            DateTimeOffset.Now, SendRecomputeQueries));
+            _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _purgeTimer,
+	            DateTimeOffset.Now, AnnouncePurge));
         }
 
         private void PrepareZMI()
@@ -40,7 +46,7 @@ namespace CloudAtlasAgent.Modules
 	        _zmi.Attributes.AddOrChange("cardinality", new ValueInt(1));
 	        
 	        // Add basic queries
-	        _queries.Add("cardinality", "SELECT sum(cardinality) AS cardinality");
+	        _queries.Add("cardinality", CARDINALITY_QUERY);
         }
         
         private void SendRecomputeQueries()
@@ -48,6 +54,13 @@ namespace CloudAtlasAgent.Modules
 	        _executor.AddMessage(new ZMIRecomputeQueriesMessage());
 	        _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _recomputeTimer,
 		        DateTimeOffset.Now, SendRecomputeQueries));
+        }
+
+        private void AnnouncePurge()
+        {
+	        _executor.AddMessage(new ZMIPurgeMessage());
+	        _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _purgeTimer,
+		        DateTimeOffset.Now, AnnouncePurge));
         }
 
         public bool Equals(IModule other) => other is ZMIModule;
@@ -70,6 +83,7 @@ namespace CloudAtlasAgent.Modules
 		        case IZMIRequestMessage _:
 		        case ZMIProcessGossipedMessage _:
 		        case ZMIRecomputeQueriesMessage _:
+		        case ZMIPurgeMessage _:
 			        _zmiMessages.Add(message);
 			        return;
 		        default:
@@ -101,6 +115,16 @@ namespace CloudAtlasAgent.Modules
 				        case ZMIProcessGossipedMessage gossipedMessage:
 					        Logger.Log($"Processing gossiped message :)\n");
 					        _zmi.UpdateZMI(gossipedMessage.Gossiped, gossipedMessage.Delay);
+					        continue;
+				        case ZMIPurgeMessage _:
+					        Logger.Log("The Purge has been announced");
+					        var safeMoment =
+						        (ValueTime) new ValueTime(DateTimeOffset.Now).Subtract(
+							        new ValueDuration(_purgeTimer, 0));
+					        Logger.Log($"The safe moment is {safeMoment}");
+					        _zmi.GetFather().PurgeTime(safeMoment);
+					        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), CARDINALITY_QUERY);
+					        _zmi.GetFather().PurgeCardinality();
 					        continue;
 				        case GetAttributesRequestMessage getAttributesZmiMessage:
 					        GetAttributes(getAttributesZmiMessage);
@@ -257,6 +281,7 @@ namespace CloudAtlasAgent.Modules
 
         private void ExecuteQueries()
         {
+	        // TODO: Rethink this
 	        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
 	        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
 

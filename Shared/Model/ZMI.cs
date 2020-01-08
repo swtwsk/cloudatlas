@@ -186,6 +186,45 @@ namespace Shared.Model
             func(this);
             Father?.ApplyUpToFather(func);
         }
+
+        public void PurgeTime(ValueTime purgeMoment)
+        {
+            var sonsToRemove = new HashSet<ZMI>();
+            
+            foreach (var son in Sons)
+            {
+                son.PurgeTime(purgeMoment);
+
+                // TODO: think about it, what about ZMIs without freshness attr?
+                if (!son.Attributes.TryGetValue("freshness", out var freshnessVal) || !(freshnessVal is ValueTime freshness))
+                {
+                    Logger.Logger.LogError($"No attribute named freshness in ZMI {son}");
+                    continue;
+                }
+
+                if (((ValueBoolean) freshness.IsLowerThan(purgeMoment)).Value.Ref)
+                    sonsToRemove.Add(son);
+            }
+
+            foreach (var toRemove in sonsToRemove)
+                RemoveSon(toRemove);
+        }
+
+        public void PurgeCardinality()
+        {
+            var sonsToRemove = new HashSet<ZMI>();
+            
+            foreach (var son in Sons)
+            {
+                son.PurgeCardinality();
+                if (son.Attributes.TryGetValue("cardinality", out var cardinality) && cardinality is ValueInt cardInt &&
+                    cardInt.Value.Ref <= 0)
+                    sonsToRemove.Add(son);
+            }
+
+            foreach (var toRemove in sonsToRemove)
+                RemoveSon(toRemove);
+        }
         
         public object Clone()
         {
