@@ -13,96 +13,117 @@ namespace CloudAtlasAgent.Modules
     public class ZMIModule : IModule
     {
         private ZMI _zmi;
-        private readonly object _zmiLock = new object();
         private readonly IExecutor _executor;
         private readonly Dictionary<string, string> _queries = new Dictionary<string, string>();
-        private readonly object _queriesLock = new object();
         private ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
-        private readonly object _contactsLock = new object();
-
-        public ZMIModule(ZMI zmi, IExecutor executor)
+        private readonly int _recomputeTimer;
+        private int _timerRequestId = 0;
+        
+        public ZMIModule(ZMI zmi, int recomputeTimer, IExecutor executor)
         {
             _zmi = zmi;
             _executor = executor;
-            _gossipProcessor = new Thread(ProcessGossipedMessage);
-            _gossipProcessor.Start();
+            _recomputeTimer = recomputeTimer;
+            
+            _zmiProcessor = new Thread(ProcessZmiMessage);
+            _zmiProcessor.Start();
+            
+            _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _recomputeTimer,
+	            DateTimeOffset.Now, SendRecomputeQueries));
+        }
+        
+        private void SendRecomputeQueries()
+        {
+	        _executor.AddMessage(new ZMIRecomputeQueriesMessage());
+	        _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _recomputeTimer,
+		        DateTimeOffset.Now, SendRecomputeQueries));
         }
 
         public bool Equals(IModule other) => other is ZMIModule;
         public override bool Equals(object? obj) => obj != null && Equals(obj as ZMIModule);
         public override int GetHashCode() => "ZMI".GetHashCode();
 
-        private readonly Thread _gossipProcessor;
-
-        private readonly BlockingCollection<(List<(PathName, AttributesMap)> attrList, ValueDuration delay)>
-	        _gossipedMessages = new BlockingCollection<(List<(PathName, AttributesMap)>, ValueDuration)>();
+        private readonly Thread _zmiProcessor;
+        private readonly BlockingCollection<IMessage> _zmiMessages = new BlockingCollection<IMessage>();
 
         public void Dispose()
         {
-	        _gossipProcessor?.Interrupt();
-	        _gossipedMessages?.Dispose();
+	        _zmiProcessor?.Interrupt();
         }
 
-        private void ProcessGossipedMessage()
+        public void HandleMessage(IMessage message)
+        {
+	        switch (message)
+	        {
+		        case ZMIAskMessage zmiAskMessage:
+			        _zmiMessages.Add(zmiAskMessage);
+			        return;
+		        case IZMIRequestMessage zmiRequestMessage:
+			        _zmiMessages.Add(zmiRequestMessage);
+			        return;
+		        case ZMIProcessGossipedMessage gossipedMessage:
+			        _zmiMessages.Add(gossipedMessage);
+			        return;
+		        default:
+			        Logger.LogException(new ArgumentOutOfRangeException(nameof(message)));
+			        break;
+	        }
+        }
+        
+        private void ProcessZmiMessage()
         {
 	        try
 	        {
 		        while (true)
 		        {
-			        var (gossip, delay) = _gossipedMessages.Take();
-			        Logger.Log($"Processing gossiped message :)\n");
-			        
-			        lock (_zmiLock)
-				        _zmi.UpdateZMI(gossip, delay);
+			        var message = _zmiMessages.Take();
+			        switch (message)
+			        {
+				        case ZMIAskMessage zmiAskMessage:
+					        _executor.AddMessage(new ZMIResponseMessage(
+						        GetType(),
+						        zmiAskMessage.Source,
+						        _zmi,
+						        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(),
+						        zmiAskMessage.Guid));
+					        continue;
+				        case ZMIRecomputeQueriesMessage _:
+					        ExecuteQueries();
+					        continue;
+				        case ZMIProcessGossipedMessage gossipedMessage:
+					        Logger.Log($"Processing gossiped message :)\n");
+					        _zmi.UpdateZMI(gossipedMessage.Gossiped, gossipedMessage.Delay);
+					        continue;
+				        case GetAttributesRequestMessage getAttributesZmiMessage:
+					        GetAttributes(getAttributesZmiMessage);
+					        continue;
+				        case GetQueriesRequestMessage getQueriesRequestMessage:
+					        GetQueries(getQueriesRequestMessage);
+					        continue;
+				        case GetZonesRequestMessage getZonesZmiMessage:
+					        GetZones(getZonesZmiMessage);
+					        continue;
+				        case InstallQueryRequestMessage installQueryRequestMessage:
+					        InstallQuery(installQueryRequestMessage);
+					        continue;
+				        case SetAttributeRequestMessage setAttributeRequestMessage:
+					        SetAttribute(setAttributeRequestMessage);
+					        continue;
+				        case SetContactsRequestMessage setContactsRequestMessage:
+					        SetContacts(setContactsRequestMessage);
+					        continue;
+				        case UninstallQueryRequestMessage uninstallQueryRequestMessage:
+					        UninstallQuery(uninstallQueryRequestMessage);
+					        continue;
+				        default:
+					        Logger.LogException(new ArgumentOutOfRangeException(nameof(message)));
+					        continue;
+			        }
 		        }
 	        }
 	        catch (ThreadInterruptedException) {}
 	        catch (ObjectDisposedException) {}
 	        catch (Exception e) { Logger.LogException(e); }
-        }
-
-        public void HandleMessage(IMessage message)
-        {
-	        if (message is ZMIAskMessage zmiAskMessage)
-	        {
-		        lock (_zmiLock)
-			        _executor.AddMessage(new ZMIResponseMessage(GetType(), zmiAskMessage.Source, _zmi,
-				        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(), zmiAskMessage.Guid));
-		        return;
-	        }
-
-	        if (message is ZMIProcessGossipedMessage gossipedMessage)
-	        {
-		        _gossipedMessages.Add((gossipedMessage.Gossiped, gossipedMessage.Delay));
-		        return;
-	        }
-	        
-	        switch (message as IZMIRequestMessage)
-            {
-	            case GetAttributesRequestMessage getAttributesZmiMessage:
-                    GetAttributes(getAttributesZmiMessage);
-                    break;
-                case GetQueriesRequestMessage getQueriesRequestMessage:
-	                GetQueries(getQueriesRequestMessage);
-                    break;
-                case GetZonesRequestMessage getZonesZmiMessage:
-                    GetZones(getZonesZmiMessage);
-                    break;
-                case InstallQueryRequestMessage installQueryRequestMessage:
-	                InstallQuery(installQueryRequestMessage);
-                    break;
-                case SetAttributeRequestMessage setAttributeRequestMessage:
-	                SetAttribute(setAttributeRequestMessage);
-                    break;
-                case SetContactsRequestMessage setContactsRequestMessage:
-	                SetContacts(setContactsRequestMessage);
-                    break;
-                case UninstallQueryRequestMessage uninstallQueryRequestMessage:
-	                UninstallQuery(uninstallQueryRequestMessage);
-                    break;
-                default:
-                    throw new ArgumentOutOfRangeException(nameof(message));
-            }
         }
 
         private void GetZones(GetZonesRequestMessage requestMessage)
@@ -118,8 +139,7 @@ namespace CloudAtlasAgent.Modules
                     GetRecursiveZones(son);
             }
             
-            lock(_zmiLock)
-                GetRecursiveZones(_zmi.GetFather());
+	        GetRecursiveZones(_zmi.GetFather());
 
             _executor.AddMessage(new GetZonesResponseMessage(GetType(), requestMessage.Source, requestMessage, set));
         }
@@ -128,9 +148,7 @@ namespace CloudAtlasAgent.Modules
         {
             Logger.Log($"GetAttributes({requestMessage.PathName})");
 
-            AttributesMap toReturn;
-            lock (_zmiLock)
-                toReturn = _zmi.GetFather().TrySearch(requestMessage.PathName, out var zmi) ? zmi.Attributes : null;
+            var toReturn = _zmi.GetFather().TrySearch(requestMessage.PathName, out var zmi) ? zmi.Attributes : null;
 
             _executor.AddMessage(new GetAttributesResponseMessage(GetType(), requestMessage.Source, requestMessage,
                 toReturn));
@@ -140,9 +158,7 @@ namespace CloudAtlasAgent.Modules
 		{
 			Logger.Log("GetQueries");
 
-			HashSet<string> toReturn;
-			lock (_queriesLock)
-				toReturn = _queries.Keys.ToHashSet();
+			var toReturn = _queries.Keys.ToHashSet();
 
 			_executor.AddMessage(new GetQueriesResponseMessage(GetType(), requestMessage.Source, requestMessage, toReturn));
 		}
@@ -154,7 +170,7 @@ namespace CloudAtlasAgent.Modules
 	        var q = requestMessage.Query.Split(":", 2);
 	        if (q.Length != 2)
 	        {
-		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, 
+		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
 			        false));
 		        return;
 	        }
@@ -164,89 +180,81 @@ namespace CloudAtlasAgent.Modules
 
 	        bool queryExecuted;
 
-	        // I need to keep this lock that long (unfortunately), otherwise I would not be able to fallback
-	        lock (_queriesLock)
+	        if (!_queries.TryAdd(name, innerQueries))
 	        {
-		        if (!_queries.TryAdd(name, innerQueries))
-		        {
-			        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
-				        requestMessage,
-				        false));
-			        return;
-		        }
-
-		        lock (_zmiLock)
-		        {
-			        try
-			        {
-				        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), innerQueries);
-				        queryExecuted = true;
-			        }
-			        catch (Exception e)
-			        {
-				        Logger.LogException(e);
-				        queryExecuted = false;
-			        }
-		        }
-
-		        // The Fallback
-		        if (!queryExecuted)
-			        _queries.Remove(name);
+		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
+			        requestMessage,
+			        false));
+		        return;
 	        }
+
+	        try
+	        {
+		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), innerQueries);
+		        queryExecuted = true;
+	        }
+	        catch (Exception e)
+	        {
+		        Logger.LogException(e);
+		        queryExecuted = false;
+	        }
+
+	        // The Fallback
+	        if (!queryExecuted)
+		        _queries.Remove(name);
 
 	        if (queryExecuted)
 	        {
 		        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
-		        lock (_zmiLock)
-			        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
+		        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
 	        }
 
-	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, queryExecuted));
+	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
+		        queryExecuted));
         }
 
         private void UninstallQuery(UninstallQueryRequestMessage requestMessage)
 		{
 			Logger.Log($"UninstallQuery({requestMessage.QueryName})");
 
-			bool toReturn;
-			lock (_queriesLock)
-				toReturn = _queries.Remove(requestMessage.QueryName);
+			var toReturn = _queries.Remove(requestMessage.QueryName);
 			_executor.AddMessage(
 				new UninstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, toReturn));
 		}
 
-		private void SetAttribute(SetAttributeRequestMessage requestMessage)
-		{
-			Logger.Log($"SetAttribute({requestMessage.AttributeMessage})");
-			
-			var (pathName, attribute, value) = requestMessage.AttributeMessage;
+        private void SetAttribute(SetAttributeRequestMessage requestMessage)
+        {
+	        Logger.Log($"SetAttribute({requestMessage.AttributeMessage})");
 
-			lock (_zmiLock)
-			{
-				if (!_zmi.GetFather().TrySearch(pathName, out var zmi))
-					_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage,
-						false));
+	        var (pathName, attribute, value) = requestMessage.AttributeMessage;
 
-				zmi.Attributes.AddOrChange(attribute, value);
+	        if (!_zmi.GetFather().TrySearch(pathName, out var zmi))
+		        _executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage,
+			        false));
 
-				lock (_queriesLock)
-				{
-					foreach (var query in _queries.Values)
-						Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);
-				}
+	        zmi.Attributes.AddOrChange(attribute, value);
 
-				var updateTimestamp = new ValueTime(DateTimeOffset.Now);
-				_zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
-			}
+	        // do I even need this?
+	        // ExecuteQueries();
 
-			_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
-		}
+	        _executor.AddMessage(
+		        new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
+        }
 
-		private void SetContacts(SetContactsRequestMessage requestMessage)
-		{
-			lock (_contactsLock)
-				_contacts = requestMessage.Contacts;
-			_executor.AddMessage(new SetContactsResponseMessage(GetType(), requestMessage.Source, requestMessage, true));
-		}
+        private void SetContacts(SetContactsRequestMessage requestMessage)
+        {
+	        _contacts = requestMessage.Contacts;
+	        _executor.AddMessage(new SetContactsResponseMessage(GetType(), requestMessage.Source, requestMessage,
+		        true));
+        }
+
+        private void ExecuteQueries()
+        {
+	        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
+	        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
+
+	        foreach (var query in _queries.Values)
+		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);
+        }
     }
 }

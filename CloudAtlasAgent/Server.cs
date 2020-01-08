@@ -85,7 +85,7 @@ namespace CloudAtlasAgent
 			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
 
 			var manager = new ModulesManager(2000, receiverHost, receiverPort, 3000, serverPort.Host,
-				serverPort.Port, 7, 2, 5, myZmi);
+				serverPort.Port, 5, 7, 2, 5, myZmi);
 			
 			Console.WriteLine($"Agent started on {receiverHost}:{receiverPort}\nRPC started on {serverPort.Host}:{serverPort.Port}");
 			Console.WriteLine("Press ENTER to exit...");

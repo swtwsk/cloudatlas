@@ -42,7 +42,7 @@ namespace Shared.Model
         public void UpdateZMI(List<(PathName, AttributesMap)> updates, ValueDuration delay)
         {
             var father = GetFather();
-            updates.Sort((tuple1, tuple2) => tuple1.Item1.CompareTo(tuple2.Item1));
+            //updates.Sort((tuple1, tuple2) => tuple1.Item1.CompareTo(tuple2.Item1));
             foreach (var (pathName, attributes) in updates)
             {
                 var strPathName = pathName.ToString();

@@ -31,15 +31,15 @@ namespace CloudAtlasAgent.Modules
             _maxRetriesCount = maxRetriesCount;
 
             lock (_timerMessageIdLock)
-                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
-                    _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
+                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerMessageId++, _gossipTimer,
+                    DateTimeOffset.Now, AddGossipTimer));
         }
 
         private void AddGossipTimer()
         {
             lock (_timerMessageIdLock)
-                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), typeof(TimerModule), _timerMessageId++,
-                    _gossipTimer, DateTimeOffset.Now, AddGossipTimer));
+                _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerMessageId++, _gossipTimer,
+                    DateTimeOffset.Now, AddGossipTimer));
             _executor.AddMessage(new GossipStartMessage());
         }
 
@@ -355,7 +355,9 @@ namespace CloudAtlasAgent.Modules
 //                timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
                 var myDelay = timestampResponseMessage.ResponseReceiveTimestamp.Subtract(timestampResponseMessage.RequestSendTimestamp);
                 var hisDelay = timestampResponseMessage.ResponseSendTimestamp.Subtract(timestampResponseMessage.RequestReceiveTimestamp);
-                var delay =  (ValueDuration) myDelay.Subtract(hisDelay);
+                var rtd = (ValueDuration) myDelay.Subtract(hisDelay);
+                var delay = (ValueDuration) timestampResponseMessage.ResponseSendTimestamp
+                    .Add(rtd.Divide(new ValueInt(2))).Subtract(timestampResponseMessage.ResponseReceiveTimestamp);
                 PrepareAndSendAttributes(guid, timestampsInfo, zmi, delay, false);
             }
         }
