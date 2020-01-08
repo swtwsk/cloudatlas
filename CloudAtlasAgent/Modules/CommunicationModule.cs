@@ -8,6 +8,7 @@ using System.Threading;
 using Ceras;
 using CloudAtlasAgent.Modules.Messages;
 using Shared.Logger;
+using Shared.Model;
 using Shared.Serializers;
 
 namespace CloudAtlasAgent.Modules
@@ -109,6 +110,9 @@ namespace CloudAtlasAgent.Modules
             private void SendMessage(CommunicationSendMessage message, Socket socket)
             {
                 Int32 packetNumber = 1;
+
+                if (message.MessageToSend is ISendTimestamped timestamped)
+                    timestamped.SetSendTimestamp(new ValueTime(DateTimeOffset.Now));
                 
                 var length = _serializer.Serialize(message.MessageToSend, ref _buffer);
                 var currentPos = 0;
@@ -294,6 +298,8 @@ namespace CloudAtlasAgent.Modules
 
                 var message = _serializer.Deserialize<IMessage>(packetElements);
                 Logger.Log($"Got {message}!");
+                if (message is IReceivedTimestamped timestamped)
+                    timestamped.SetReceiveTimestamp(new ValueTime(DateTimeOffset.Now));
                 _executor.AddMessage(message);
             }
 

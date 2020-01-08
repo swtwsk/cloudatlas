@@ -72,6 +72,11 @@ namespace CloudAtlasAgent.Modules
             public IList<Timestamps> MyTimestamps { get; }
             public IList<Timestamps> HisTimestamps { get; set; }
             
+            public ValueTime MySendTime { get; set; }
+            public ValueTime HisReceiveTime { get; set; }
+            public ValueTime HisSendTime { get; set; }
+            public ValueTime MyReceiveTime { get; set; }
+            
             public int Attempts { get; set; }
 
             public TimestampsInfo(ValueContact contact, int level, IList<Timestamps> myTimestamps,
@@ -82,6 +87,21 @@ namespace CloudAtlasAgent.Modules
                 MyTimestamps = myTimestamps;
                 HisTimestamps = hisTimestamps;
                 Attempts = attempts;
+            }
+            
+            public TimestampsInfo(ValueContact contact, int level, IList<Timestamps> myTimestamps,
+                IList<Timestamps> hisTimestamps, ValueTime hisSendTime, ValueTime myReceiveTime) 
+                : this(contact, level, myTimestamps, hisTimestamps)
+            {
+                HisSendTime = hisSendTime;
+                MyReceiveTime = myReceiveTime;
+            }
+
+            public TimestampsInfo(GossipTimestampAsk askMessage) 
+                : this(askMessage.Contact, askMessage.Level, null, askMessage.Timestamps)
+            {
+                HisSendTime = askMessage.SendTimestamp;
+                MyReceiveTime = askMessage.ReceiveTimestamp;
             }
             
             public void Deconstruct(out ValueContact contact, out int level, out IList<Timestamps> myTimestamps,
@@ -122,10 +142,9 @@ namespace CloudAtlasAgent.Modules
                                     (responseMessage.Zmi, responseMessage.FallbackContacts));
                             _incomingGossips.Add((responseMessage.RequestGuid, null));
                             break;
-                        case GossipTimestampAskMessage gossipAskMessage:
+                        case GossipTimestampAsk gossipAskMessage:
                             lock (_timestamps)
-                                _timestamps[gossipAskMessage.Guid] = new TimestampsInfo(gossipAskMessage.Contact,
-                                    gossipAskMessage.Level, null, gossipAskMessage.Timestamps);
+                                _timestamps[gossipAskMessage.Guid] = new TimestampsInfo(gossipAskMessage);
                             _executor.AddMessage(new ZMIAskMessage(GetType(), gossipAskMessage.Guid));
                             break;
                         case GossipTimestampResponseMessage gossipResponseMessage:
@@ -139,6 +158,10 @@ namespace CloudAtlasAgent.Modules
                                     continue;
                                 }
                                 timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
+                                timestamps.MySendTime = gossipResponseMessage.RequestSendTimestamp;
+                                timestamps.HisReceiveTime = gossipResponseMessage.RequestReceiveTimestamp;
+                                timestamps.HisSendTime = gossipResponseMessage.ResponseSendTimestamp;
+                                timestamps.MyReceiveTime = gossipResponseMessage.ResponseReceiveTimestamp;
                             }
 
                             HaltRetry(gossipResponseMessage.Guid);
@@ -172,7 +195,7 @@ namespace CloudAtlasAgent.Modules
                                     continue;
 
                                 var attempt = retryTimestamps.Attempts + 1;
-                                if (attempt == _maxRetriesCount)
+                                if (attempt >= _maxRetriesCount)
                                 {
                                     HaltRetry(retryMessage.Guid);
                                     continue;
@@ -256,7 +279,7 @@ namespace CloudAtlasAgent.Modules
                         case GossipAttributesMessage gossipAttributesMessage:
                             ProcessAttributeMessage(guid, gossipAttributesMessage, zmi);
                             break;
-                        case GossipTimestampAskMessage _:
+                        case GossipTimestampAsk _:
                             Logger.LogError("Should not get here, something wrong with logic previously");
                             break;
                         case GossipTimestampResponseMessage gossipTimestampResponseMessage:
@@ -280,7 +303,8 @@ namespace CloudAtlasAgent.Modules
                 {
                     Logger.LogWarning("No contacts at all");
                     // TODO: Multicast here
-                    return null;
+                    // return null
+                    return new TimestampsInfo(null, level, null, null, _maxRetriesCount);
                 }
             }
             else
@@ -290,7 +314,7 @@ namespace CloudAtlasAgent.Modules
 
             Logger.Log($"Sending initial timestamps to {contact}");
             var (myTimestamps, myContact) = PrepareGossipTimestampsMessage(zmi, level);
-            var gossipAskMsg = new GossipTimestampAskMessage(guid, myTimestamps, level, myContact);
+            var gossipAskMsg = new GossipTimestampAsk(guid, myTimestamps, level, myContact);
             
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
                 gossipAskMsg, contact.Address, contact.Port);
@@ -306,13 +330,15 @@ namespace CloudAtlasAgent.Modules
             Logger.Log($"Acquired timestamps from {contact}");
 
             var (myTimestamps, _) = PrepareGossipTimestampsMessage(zmi, level);
-            var gossipResponseMessage = new GossipTimestampResponseMessage(guid, myTimestamps);
+            var gossipResponseMessage = new GossipTimestampResponseMessage(guid, myTimestamps, message.HisSendTime, 
+                message.MyReceiveTime);
 
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
                 gossipResponseMessage, contact.Address, contact.Port);
             _executor.AddMessage(newMsg);
-            
-            return new TimestampsInfo(contact, level, myTimestamps, hisTimestamps);
+
+            return new TimestampsInfo(contact, level, myTimestamps, hisTimestamps, message.HisSendTime,
+                message.MyReceiveTime);
         }
 
         private void ProcessTimestampResponse(Guid guid, GossipTimestampResponseMessage timestampResponseMessage, ZMI zmi)
@@ -326,8 +352,11 @@ namespace CloudAtlasAgent.Modules
                     return;
                 }
 
-                timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
-                PrepareAndSendAttributes(guid, timestampsInfo, zmi, false);
+//                timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
+                var myDelay = timestampResponseMessage.ResponseReceiveTimestamp.Subtract(timestampResponseMessage.RequestSendTimestamp);
+                var hisDelay = timestampResponseMessage.ResponseSendTimestamp.Subtract(timestampResponseMessage.RequestReceiveTimestamp);
+                var delay =  (ValueDuration) myDelay.Subtract(hisDelay);
+                PrepareAndSendAttributes(guid, timestampsInfo, zmi, delay, false);
             }
         }
 
@@ -343,36 +372,38 @@ namespace CloudAtlasAgent.Modules
                 }
 
                 if (!attributesMessage.IsResponse)
-                    PrepareAndSendAttributes(guid, timestampsInfo, zmi, true);
+                    PrepareAndSendAttributes(guid, timestampsInfo, zmi, attributesMessage.Delay, true);
 
                 _timestamps.Remove(guid);
             }
 
             lock (_zmis)
                 _zmis.Remove(guid);
-            
-            _executor.AddMessage(new ZMIProcessGossipedMessage(GetType(), attributesMessage.Attributes));
+
+            _executor.AddMessage(new ZMIProcessGossipedMessage(GetType(), attributesMessage.Attributes,
+                attributesMessage.Delay));
         }
 
-        private void PrepareAndSendAttributes(Guid guid, TimestampsInfo timestampsInfo, ZMI zmi, bool isResponse)
+        private void PrepareAndSendAttributes(Guid guid, TimestampsInfo timestampsInfo, ZMI zmi, ValueDuration delay, bool isResponse)
         {
-            var (myInterestingAttributes, hisInterestingZmis) =
-                ExtractInterestingAttributes(zmi, timestampsInfo.MyTimestamps, timestampsInfo.HisTimestamps);
+            var myInterestingAttributes =
+                ExtractInterestingAttributes(zmi, timestampsInfo.MyTimestamps, timestampsInfo.HisTimestamps, delay);
             
-            var gossipMsg = new GossipAttributesMessage(guid, myInterestingAttributes, isResponse);
+            var gossipMsg = new GossipAttributesMessage(guid, myInterestingAttributes, (ValueDuration) delay.Negate(), isResponse);
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule), gossipMsg,
                 timestampsInfo.Contact.Address, timestampsInfo.Contact.Port);
             _executor.AddMessage(newMsg);
         }
 
-        // TODO: Remove hisZmis
-        private static (List<(PathName, AttributesMap)> myAttributes, IList<PathName> hisZmis)
-            ExtractInterestingAttributes(ZMI zmi, IEnumerable<Timestamps> myTimestamps,
-                IEnumerable<Timestamps> hisTimestamps)
+        private static List<(PathName, AttributesMap)> ExtractInterestingAttributes(ZMI zmi, 
+            IEnumerable<Timestamps> myTimestamps, IEnumerable<Timestamps> hisTimestamps, ValueDuration delay)
         {
             var mySortedTimestamps = myTimestamps.ToList();
+            mySortedTimestamps.ForEach(ts => ts.ApplyFunc(time => (ValueTime) time.Add(delay)));
             mySortedTimestamps.Sort();
+            
             var hisSortedTimestamps = hisTimestamps.ToList();
+            hisSortedTimestamps.ForEach(ts => ts.ApplyFunc(time => (ValueTime) time.Add(delay)));
             hisSortedTimestamps.Sort();
 
             var i = 0;
@@ -381,7 +412,6 @@ namespace CloudAtlasAgent.Modules
             var myFather = zmi.GetFather();
 
             var myAttributes = new List<(PathName, AttributesMap)>();
-            var hisZmis = new List<PathName>();
 
             void ExtractAndSaveMyAttr()
             {
@@ -391,6 +421,7 @@ namespace CloudAtlasAgent.Modules
                     Logger.LogWarning($"Couldn't find zmi for {pathName}");
                     return;
                 }
+                
                 myAttributes.Add((pathName, foundZmi.Attributes.Clone() as AttributesMap));
             }
 
@@ -403,20 +434,13 @@ namespace CloudAtlasAgent.Modules
                 }
                 else if (mySortedTimestamps[i].CompareTo(hisSortedTimestamps[j]) > 0)
                 {
-                    hisZmis.Add(hisSortedTimestamps[j].PathName);
                     j++;
                 }
                 else
                 {
                     var timestampComp = mySortedTimestamps[i].CompareTimestamps(hisSortedTimestamps[j]);
-                    if (timestampComp < 0)
-                    {
-                        hisZmis.Add(hisSortedTimestamps[j].PathName);
-                    }
-                    else if (timestampComp > 0)
-                    {
+                    if (timestampComp > 0)
                         ExtractAndSaveMyAttr();
-                    }
                     
                     i++;
                     j++;
@@ -429,13 +453,7 @@ namespace CloudAtlasAgent.Modules
                 i++;
             }
 
-            while (j < hisSortedTimestamps.Count)
-            {
-                hisZmis.Add(hisSortedTimestamps[j].PathName);
-                j++;
-            }
-
-            return (myAttributes, hisZmis);
+            return myAttributes;
         }
 
         public void Dispose()

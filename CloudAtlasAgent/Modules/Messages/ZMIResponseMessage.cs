@@ -8,7 +8,6 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         public Type Source { get; private set; }
         public Type Destination { get; private set; }
-        public MessageType MessageType => MessageType.ZMIResponse;
         
         public ZMI Zmi { get; private set; }
         public IList<ValueContact> FallbackContacts { get; private set; }

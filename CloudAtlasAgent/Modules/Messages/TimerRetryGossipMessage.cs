@@ -6,7 +6,6 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         public Type Source { get; private set; } = typeof(GossipModule);
         public Type Destination { get; private set; } = typeof(TimerModule);
-        public MessageType MessageType => MessageType.CommunicationSend;
         
         public Guid Guid { get; private set; }
         public int Delay { get; private set; }

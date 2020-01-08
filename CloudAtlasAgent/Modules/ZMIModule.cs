@@ -33,8 +33,9 @@ namespace CloudAtlasAgent.Modules
         public override int GetHashCode() => "ZMI".GetHashCode();
 
         private readonly Thread _gossipProcessor;
-        private readonly BlockingCollection<List<(PathName, AttributesMap)>> _gossipedMessages =
-	        new BlockingCollection<List<(PathName, AttributesMap)>>();
+
+        private readonly BlockingCollection<(List<(PathName, AttributesMap)> attrList, ValueDuration delay)>
+	        _gossipedMessages = new BlockingCollection<(List<(PathName, AttributesMap)>, ValueDuration)>();
 
         public void Dispose()
         {
@@ -48,11 +49,11 @@ namespace CloudAtlasAgent.Modules
 	        {
 		        while (true)
 		        {
-			        var gossip = _gossipedMessages.Take();
+			        var (gossip, delay) = _gossipedMessages.Take();
 			        Logger.Log($"Processing gossiped message :)\n");
 			        
 			        lock (_zmiLock)
-				        _zmi.UpdateZMI(gossip);
+				        _zmi.UpdateZMI(gossip, delay);
 		        }
 	        }
 	        catch (ThreadInterruptedException) {}
@@ -72,7 +73,7 @@ namespace CloudAtlasAgent.Modules
 
 	        if (message is ZMIProcessGossipedMessage gossipedMessage)
 	        {
-		        _gossipedMessages.Add(gossipedMessage.Gossiped);
+		        _gossipedMessages.Add((gossipedMessage.Gossiped, gossipedMessage.Delay));
 		        return;
 	        }
 	        
@@ -193,6 +194,13 @@ namespace CloudAtlasAgent.Modules
 			        _queries.Remove(name);
 	        }
 
+	        if (queryExecuted)
+	        {
+		        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
+		        lock (_zmiLock)
+			        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
+	        }
+
 	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, queryExecuted));
         }
 
@@ -226,6 +234,9 @@ namespace CloudAtlasAgent.Modules
 					foreach (var query in _queries.Values)
 						Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);
 				}
+
+				var updateTimestamp = new ValueTime(DateTimeOffset.Now);
+				_zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
 			}
 
 			_executor.AddMessage(new SetAttributeResponseMessage(GetType(), requestMessage.Source, requestMessage, true));

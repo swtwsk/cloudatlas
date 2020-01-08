@@ -31,5 +31,11 @@ namespace Shared.Model
         }
 
         public int CompareTimestamps(Timestamps other) => TimeStamp.CompareTo(other.TimeStamp);
+
+        // map as `void Apply` due to performance reasons
+        public void ApplyFunc(Func<ValueTime, ValueTime> mapFunc)
+        {
+            TimeStamp = mapFunc(TimeStamp);
+        }
     }
 }

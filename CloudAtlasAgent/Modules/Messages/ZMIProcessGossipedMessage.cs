@@ -8,16 +8,17 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         public Type Source { get; private set; }
         public Type Destination { get; private set; } = typeof(ZMIModule);
-        public MessageType MessageType => MessageType.ZMIAsk;
         
         public List<(PathName, AttributesMap)> Gossiped { get; private set; }
+        public ValueDuration Delay { get; private set; }
         
         private ZMIProcessGossipedMessage() {}
 
-        public ZMIProcessGossipedMessage(Type source, List<(PathName, AttributesMap)> gossiped)
+        public ZMIProcessGossipedMessage(Type source, List<(PathName, AttributesMap)> gossiped, ValueDuration delay)
         {
             Source = source;
             Gossiped = gossiped;
+            Delay = delay;
         }
     }
 }

@@ -7,7 +7,6 @@ namespace CloudAtlasAgent.Modules.Messages.ZMIMessages
     {
         public Type Source { get; private set; }
         public Type Destination { get; private set; }
-        public MessageType MessageType => MessageType.ZMIGetAttributesResponse;
         public IZMIRequestMessage Request { get; private set; }
         public AttributesMap Response { get; private set; }
         

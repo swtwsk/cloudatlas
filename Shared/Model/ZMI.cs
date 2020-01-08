@@ -39,7 +39,7 @@ namespace Shared.Model
             return HashCode.Combine(PathName, Father);
         }
 
-        public void UpdateZMI(List<(PathName, AttributesMap)> updates)
+        public void UpdateZMI(List<(PathName, AttributesMap)> updates, ValueDuration delay)
         {
             var father = GetFather();
             updates.Sort((tuple1, tuple2) => tuple1.Item1.CompareTo(tuple2.Item1));
@@ -55,8 +55,13 @@ namespace Shared.Model
                     }
                 }
 
+                var hasTimestamp = toUpdate.Attributes.TryGetValue("freshness", out var timestamp);
+
+                if (hasTimestamp && !delay.IsNull)
+                    timestamp = timestamp.Add(delay);
+
                 // do not update already fresher zmis
-                if (toUpdate.Attributes.TryGetValue("freshness", out var timestamp) &&
+                if (hasTimestamp &&
                     attributes.TryGetValue("freshness", out var otherTimeStamp) &&
                     ((ValueTime) timestamp).CompareTo((ValueTime) otherTimeStamp) > 0)
                 {
@@ -174,6 +179,12 @@ namespace Shared.Model
             func(this);
             foreach (var son in Sons)
                 son.ApplyForEach(func);
+        }
+
+        public void ApplyUpToFather(Action<ZMI> func)
+        {
+            func(this);
+            Father?.ApplyUpToFather(func);
         }
         
         public object Clone()

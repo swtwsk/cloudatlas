@@ -12,6 +12,7 @@ using Shared.RPC;
 
 namespace CloudAtlasAgent.Modules
 {
+	// Should be named RPC Module (as in C# there's no RMIs) but named this way for consistence
     public class RMIModule : IModule
     {
         public bool Equals(IModule other) => other is RMIModule;

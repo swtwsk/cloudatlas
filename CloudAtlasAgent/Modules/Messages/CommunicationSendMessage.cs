@@ -7,7 +7,6 @@ namespace CloudAtlasAgent.Modules.Messages
     {
         public Type Source { get; private set; }
         public Type Destination { get; private set; }
-        public MessageType MessageType => MessageType.CommunicationSend;
         
         public IMessage MessageToSend { get; private set; }
         public IPAddress Address { get; private set; }

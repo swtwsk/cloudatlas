@@ -6,7 +6,6 @@ namespace CloudAtlasAgent.Modules.Messages.GossipMessages
     {
         public Type Source { get; protected set; } = typeof(GossipModule);
         public Type Destination { get; protected set; } = typeof(GossipModule);
-        public MessageType MessageType => MessageType.GossipAsk;
         
         public Guid Guid { get; protected set; }
 
