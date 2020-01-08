@@ -25,11 +25,22 @@ namespace CloudAtlasAgent.Modules
             _executor = executor;
             _recomputeTimer = recomputeTimer;
             
+            PrepareZMI();
+            
             _zmiProcessor = new Thread(ProcessZmiMessage);
             _zmiProcessor.Start();
-            
+
             _executor.AddMessage(new TimerAddCallbackMessage(GetType(), _timerRequestId++, _recomputeTimer,
 	            DateTimeOffset.Now, SendRecomputeQueries));
+        }
+
+        private void PrepareZMI()
+        {
+	        // Add basic attributes
+	        _zmi.Attributes.AddOrChange("cardinality", new ValueInt(1));
+	        
+	        // Add basic queries
+	        _queries.Add("cardinality", "SELECT sum(cardinality) AS cardinality");
         }
         
         private void SendRecomputeQueries()
@@ -55,14 +66,11 @@ namespace CloudAtlasAgent.Modules
         {
 	        switch (message)
 	        {
-		        case ZMIAskMessage zmiAskMessage:
-			        _zmiMessages.Add(zmiAskMessage);
-			        return;
-		        case IZMIRequestMessage zmiRequestMessage:
-			        _zmiMessages.Add(zmiRequestMessage);
-			        return;
-		        case ZMIProcessGossipedMessage gossipedMessage:
-			        _zmiMessages.Add(gossipedMessage);
+		        case ZMIAskMessage _:
+		        case IZMIRequestMessage _:
+		        case ZMIProcessGossipedMessage _:
+		        case ZMIRecomputeQueriesMessage _:
+			        _zmiMessages.Add(message);
 			        return;
 		        default:
 			        Logger.LogException(new ArgumentOutOfRangeException(nameof(message)));
@@ -183,8 +191,7 @@ namespace CloudAtlasAgent.Modules
 	        if (!_queries.TryAdd(name, innerQueries))
 	        {
 		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
-			        requestMessage,
-			        false));
+			        requestMessage, false));
 		        return;
 	        }
 
