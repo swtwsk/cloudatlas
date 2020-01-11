@@ -76,7 +76,7 @@ namespace CloudAtlasAgent
 
 			var creationTimestamp = new ValueTime(DateTimeOffset.Now);
 			
-			fatherZmi.ApplyForEach(zmi => zmi.Attributes.AddOrChange("freshness", creationTimestamp));
+			fatherZmi.ApplyForEach(zmi => zmi.Attributes.AddOrChange("update", creationTimestamp));
 			if (!fatherZmi.TrySearch(zmiName, out var myZmi))
 			{
 				Console.WriteLine($"Could not find node {zmiName} in ZMIs");

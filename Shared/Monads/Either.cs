@@ -1,10 +1,14 @@
 using System;
+using System.Collections.Generic;
 
 namespace Shared.Monads
 {
     public abstract class Either<L, R>
     {
         private Either() {}
+        
+        public abstract bool IsRight { get; }
+        public bool IsLeft => !IsRight;
         
         public abstract L LeftVal { get; }
         public abstract R RightVal { get; }
@@ -41,6 +45,7 @@ namespace Shared.Monads
             public sealed class Left : Either<L, R>
             {
                 public Left(L val) => LeftVal = val;
+                public override bool IsRight { get; } = false;
                 public override L LeftVal { get; }
                 public override R RightVal => throw new InvalidOperationException("There's no Right value in Left");
             }
@@ -48,9 +53,28 @@ namespace Shared.Monads
             public sealed class Right : Either<L, R>
             {
                 public Right(R val) => RightVal = val;
+                public override bool IsRight { get; } = true;
                 public override L LeftVal => throw new InvalidOperationException("There's no Left value in Right");
                 public override R RightVal { get; }
             }
+        }
+    }
+    
+    public static class EitherExtensions
+    {
+        public static Either<L, R> Left<L, R>(this L that) => Either<L, R>.Left(that);
+        public static Either<L, R> Right<L, R>(this R that) => Either<L, R>.Right(that);
+
+        public static Either<L, List<R>> Sequence<L, R>(this IEnumerable<Either<L, R>> that)
+        {
+            var list = new List<R>();
+            foreach (var either in that)
+            {
+                if (either.IsLeft)
+                    return Either<L, List<R>>.Left(either.LeftVal);
+                list.Add(either.RightVal);
+            }
+            return list.Right<L, List<R>>();
         }
     }
 }

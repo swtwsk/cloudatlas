@@ -55,14 +55,14 @@ namespace Shared.Model
                     }
                 }
 
-                var hasTimestamp = toUpdate.Attributes.TryGetValue("freshness", out var timestamp);
+                var hasTimestamp = toUpdate.Attributes.TryGetValue("update", out var timestamp);
 
                 if (hasTimestamp && !delay.IsNull)
                     timestamp = timestamp.Add(delay);
 
                 // do not update already fresher zmis
                 if (hasTimestamp &&
-                    attributes.TryGetValue("freshness", out var otherTimeStamp) &&
+                    attributes.TryGetValue("update", out var otherTimeStamp) &&
                     ((ValueTime) timestamp).CompareTo((ValueTime) otherTimeStamp) > 0)
                 {
                     continue;
@@ -111,7 +111,7 @@ namespace Shared.Model
             }
             while (currentZmi.Attributes.TryGetValue("level", out var lvl) && ((ValueInt) lvl).Value.Ref > 0)
             {
-                result.Add(currentZmi.Attributes.TryGetValue("freshness", out var timestamp)
+                result.Add(currentZmi.Attributes.TryGetValue("update", out var timestamp)
                     ? new Timestamps(currentZmi.PathName, (ValueTime) timestamp)
                     : new Timestamps(currentZmi.PathName, null));
                 currentZmi = currentZmi.Father;
@@ -195,14 +195,14 @@ namespace Shared.Model
             {
                 son.PurgeTime(purgeMoment);
 
-                // TODO: think about it, what about ZMIs without freshness attr?
-                if (!son.Attributes.TryGetValue("freshness", out var freshnessVal) || !(freshnessVal is ValueTime freshness))
+                // TODO: think about it, what about ZMIs without update attr?
+                if (!son.Attributes.TryGetValue("update", out var updateVal) || !(updateVal is ValueTime update))
                 {
-                    Logger.Logger.LogError($"No attribute named freshness in ZMI {son}");
+                    Logger.Logger.LogError($"No attribute named update in ZMI {son}");
                     continue;
                 }
 
-                if (((ValueBoolean) freshness.IsLowerThan(purgeMoment)).Value.Ref)
+                if (((ValueBoolean) update.IsLowerThan(purgeMoment)).Value.Ref)
                     sonsToRemove.Add(son);
             }
 

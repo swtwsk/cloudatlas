@@ -198,17 +198,8 @@ namespace CloudAtlasAgent.Modules
         private void InstallQuery(InstallQueryRequestMessage requestMessage)
         {
 	        Logger.Log($"InstallQuery({requestMessage.Query})");
-
-	        var q = requestMessage.Query.Split(":", 2);
-	        if (q.Length != 2)
-	        {
-		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
-			        false));
-		        return;
-	        }
-
-	        var name = q[0];
-	        var innerQueries = q[1];
+	        
+	        
 
 	        bool queryExecuted;
 
@@ -237,7 +228,7 @@ namespace CloudAtlasAgent.Modules
 	        if (queryExecuted)
 	        {
 		        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
-		        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
+		        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("update", updateTimestamp));
 	        }
 
 	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
@@ -283,7 +274,7 @@ namespace CloudAtlasAgent.Modules
         {
 	        // TODO: Rethink this
 	        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
-	        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("freshness", updateTimestamp));
+	        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("update", updateTimestamp));
 
 	        foreach (var query in _queries.Values)
 		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);

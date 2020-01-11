@@ -14,6 +14,12 @@ namespace CloudAtlasClient
             [Option("sPort", Default = 5000, HelpText = "Server port number")]
             public int ServerPortNumber { get; set; }
             
+            [Option("qHost", Default = "127.0.0.1", HelpText = "Query signer host name")]
+            public string SignerHostName { get; set; }
+            
+            [Option("qPort", Default = 6666, HelpText = "Query signer port number")]
+            public int SignerPortNumber { get; set; }
+            
             [Option('h', "host", Default = "127.0.0.1", HelpText = "Client host name")]
             public string HostName { get; set; }
             
@@ -24,12 +30,14 @@ namespace CloudAtlasClient
         static void Main(string[] args)
         {
             IServerData serverData = null;
+            IServerData queryServerData = null;
             Uri apiUri = null;
             
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(opts =>
                 {
                     serverData = new ServerData(opts.ServerHostName, opts.ServerPortNumber); 
+                    queryServerData = new ServerData(opts.SignerHostName, opts.SignerPortNumber); 
                     apiUri = new Uri($"http://{opts.HostName}:{opts.PortNumber}");
                 })
                 .WithNotParsed(errs =>
@@ -39,7 +47,7 @@ namespace CloudAtlasClient
                     Environment.Exit(1);
                 });
 
-            using var host = new NancyHost(new Bootstrapper(serverData), apiUri);
+            using var host = new NancyHost(new Bootstrapper(serverData, queryServerData), apiUri);
             host.Start();
             Console.WriteLine($"Client running on {apiUri}. Press Enter to stop it...");
             Console.ReadLine();

@@ -17,10 +17,9 @@ namespace Interpreter
 			
             foreach (var son in zmi.Sons)
                 ExecuteQueries(son, query, log);
-			
-            var lexer = new QueryLexer(new AntlrInputStream(query));
-            var parser = new QueryParser(new CommonTokenStream(lexer));
-            var result = parser.program().VisitProgram(zmi);
+
+            TryParse(query, out var programContext);
+            var result = programContext.VisitProgram(zmi);
             var zone = zmi.PathName;
 			
             foreach (var r in result) {
@@ -29,11 +28,19 @@ namespace Interpreter
                 zmi.Attributes.AddOrChange(r.Name, r.Value);
             }
         }
-        
-        public static List<QueryResult> VisitProgram(this QueryParser.ProgramContext context, ZMI zmi) =>
+
+        public static bool TryParse(string query, out QueryParser.ProgramContext programContext)
+        {
+            var lexer = new QueryLexer(new AntlrInputStream(query));
+            var parser = new QueryParser(new CommonTokenStream(lexer));
+            programContext = parser.program();
+            return programContext != null;
+        }
+
+        private static IEnumerable<QueryResult> VisitProgram(this QueryParser.ProgramContext context, ZMI zmi) =>
             VisitProgram(zmi, context);
 
-        public static List<QueryResult> VisitProgram(ZMI zmi, QueryParser.ProgramContext context)
+        private static IEnumerable<QueryResult> VisitProgram(ZMI zmi, QueryParser.ProgramContext context)
         {
             var toReturn = new QueryVisitor(zmi).Visit(context).ToList();
             if (toReturn.Any(maybe => maybe.Match(v => v.Name == null, () => false)))

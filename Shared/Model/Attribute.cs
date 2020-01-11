@@ -12,11 +12,13 @@ namespace Shared.Model
         private Attribute() {}
         public Attribute(string name)
         {
-            if (!Regex.IsMatch(name, "^&?[a-zA-Z]{1}[a-zA-z0-9_]*$"))
+            if (!IsProperName(name))
                 throw new System.ArgumentException("Invalid name: may contain only letters, digits, underscores, "
                                                    + "must start with a letter and may optionally have an ampersand at the beginning.");
             Name = name;
         }
+
+        public static bool IsProperName(string name) => Regex.IsMatch(name, "^&?[a-zA-Z]{1}[a-zA-z0-9_]*$");
 
         public static bool IsQuery(Attribute attribute) => attribute.Name.StartsWith("&");
 

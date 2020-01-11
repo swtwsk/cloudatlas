@@ -10,17 +10,20 @@ using Nancy.TinyIoc;
 using Newtonsoft.Json;
 using Shared;
 using Shared.Model;
+using Shared.Monads;
 using Shared.RPC;
 
 namespace CloudAtlasClient
 {
     public sealed class WebRequestHandler : NancyModule
     {
-        private IServerData _serverData;
+        private readonly IServerData _serverData;
+        private readonly IServerData _queryServerData;
         
-        public WebRequestHandler(IServerData serverData)
+        public WebRequestHandler(IServerData serverData, IServerData queryServerData)
         {
             _serverData = serverData;
+            _queryServerData = queryServerData;
             
             Get("/", _ => Response.AsFile("dist/index.html", "text/html"));
             Get("/zmis", async _ =>
@@ -51,7 +54,13 @@ namespace CloudAtlasClient
                 var returnDict = new Dictionary<int, bool>();
                 foreach (var (i, query) in dict)
                 {
-                    var result = await InstallAsync(GetInvoker(), query);
+                    var signResult = await SignQuery(GetSignerInvoker(), query);
+                    if (signResult.IsLeft)
+                    {
+                        returnDict[i] = false;
+                        continue;
+                    }
+                    var result = await InstallAsync(GetInvoker(), signResult.RightVal);
                     returnDict[i] = result;
                 }
                 var response = (Response) JsonConvert.SerializeObject(returnDict);
@@ -66,9 +75,29 @@ namespace CloudAtlasClient
             });
         }
 
+        private async Task<Either<RefStruct<SignError>, SignedQuery>> SignQuery(CallInvoker invoker, string query)
+        {
+            var q = query.Split(":", 2);
+            if (q.Length != 2)
+            {
+                return SignError.IncorrectQuery.ToNullableWrapper().Left<RefStruct<SignError>, SignedQuery>();
+            }
+
+            var name = q[0];
+            var innerQuery = q[1];
+            using var call = invoker.AsyncUnaryCall(SignerMethods.SignQuery, null, new CallOptions(), new SignRequest{Name = name, Query = innerQuery});
+            return await call.ResponseAsync;
+        }
+
         private DefaultCallInvoker GetInvoker()
         {
             var channel = new Channel(_serverData.HostName, _serverData.PortNumber, ChannelCredentials.Insecure);
+            return new DefaultCallInvoker(channel);
+        }
+        
+        private DefaultCallInvoker GetSignerInvoker()
+        {
+            var channel = new Channel(_queryServerData.HostName, _queryServerData.PortNumber, ChannelCredentials.Insecure);
             return new DefaultCallInvoker(channel);
         }
         
@@ -102,7 +131,7 @@ namespace CloudAtlasClient
             return await call.ResponseAsync;
         }
         
-        private static async Task<bool> InstallAsync(CallInvoker invoker, string query)
+        private static async Task<bool> InstallAsync(CallInvoker invoker, SignedQuery query)
         {
             using var call = invoker.AsyncUnaryCall(AgentMethods.InstallQuery, null, new CallOptions(), query);
             var result = await call.ResponseAsync;
@@ -126,10 +155,12 @@ namespace CloudAtlasClient
     public class Bootstrapper : DefaultNancyBootstrapper
     {
         private readonly IServerData _serverData;
+        private readonly IServerData _queryServerData;
 
-        public Bootstrapper(IServerData serverData)
+        public Bootstrapper(IServerData serverData, IServerData queryServerData)
         {
             _serverData = serverData;
+            _queryServerData = queryServerData;
         }
 
         protected override void ConfigureConventions(NancyConventions nancyConventions)

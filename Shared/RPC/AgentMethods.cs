@@ -6,36 +6,36 @@ using Attribute = Shared.Model.Attribute;
 
 namespace Shared.RPC
 {
-    public class AgentMethods
+    public static class AgentMethods
     {
-        public const string ServiceName = "CloudAtlasAgent";
+        private const string SERVICE_NAME = "CloudAtlasAgent";
 
         public static Method<Empty, HashSet<string>> GetZones { get; } =
-            MethodsUtils.GetMethod<Empty, HashSet<string>>(MethodType.Unary, ServiceName, "GetZones",
+            MethodsUtils.GetMethod<Empty, HashSet<string>>(MethodType.Unary, SERVICE_NAME, "GetZones",
                 CustomSerializer.Serializer);
 
         public static Method<string, AttributesMap> GetAttributes { get; } =
-            MethodsUtils.GetMethod<string, AttributesMap>(MethodType.Unary, ServiceName, "GetAttributes",
+            MethodsUtils.GetMethod<string, AttributesMap>(MethodType.Unary, SERVICE_NAME, "GetAttributes",
                 CustomSerializer.Serializer);
 
         public static Method<Empty, HashSet<string>> GetQueries { get; } =
-            MethodsUtils.GetMethod<Empty, HashSet<string>>(MethodType.Unary, ServiceName, "GetQueries",
+            MethodsUtils.GetMethod<Empty, HashSet<string>>(MethodType.Unary, SERVICE_NAME, "GetQueries",
                 CustomSerializer.Serializer);
 
-        public static Method<string, RefStruct<bool>> InstallQuery { get; } =
-            MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, ServiceName, "InstallQuery",
+        public static Method<SignedQuery, RefStruct<bool>> InstallQuery { get; } =
+            MethodsUtils.GetMethod<SignedQuery, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "InstallQuery",
                 CustomSerializer.Serializer);
 
         public static Method<string, RefStruct<bool>> UninstallQuery { get; } =
-            MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, ServiceName, "UninstallQuery",
+            MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "UninstallQuery",
                 CustomSerializer.Serializer);
         
         public static Method<AttributeMessage, RefStruct<bool>> SetAttribute { get; } =
-            MethodsUtils.GetMethod<AttributeMessage, RefStruct<bool>>(MethodType.Unary, ServiceName, "SetAttribute",
+            MethodsUtils.GetMethod<AttributeMessage, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "SetAttribute",
                 CustomSerializer.Serializer);
 
         public static Method<ValueSet, RefStruct<bool>> SetContacts { get; } =
-            MethodsUtils.GetMethod<ValueSet, RefStruct<bool>>(MethodType.Unary, ServiceName, "SetContacts",
+            MethodsUtils.GetMethod<ValueSet, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "SetContacts",
                 CustomSerializer.Serializer);
     }
 

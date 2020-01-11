@@ -77,7 +77,7 @@ namespace CloudAtlasAgent.Modules
 				new GetQueriesRequestMessage(GetType(), typeof(ZMIModule)));
 		}
 
-		private Task<RefStruct<bool>> InstallQuery(string query, ServerCallContext ctx)
+		private Task<RefStruct<bool>> InstallQuery(SignedQuery query, ServerCallContext ctx)
 		{
 			Logger.Log($"InstallQuery({query})");
 			return ProcessTask<RefStruct<bool>, InstallQueryRequestMessage, InstallQueryResponseMessage>(
