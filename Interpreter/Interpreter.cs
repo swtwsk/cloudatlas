@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using Antlr4.Runtime;
 using Shared.Model;
 using Shared.Monads;
 using Interpreter.Query;
+using Shared.Logger;
 
 namespace Interpreter
 {
@@ -18,7 +20,17 @@ namespace Interpreter
             foreach (var son in zmi.Sons)
                 ExecuteQueries(son, query, log);
 
-            TryParse(query, out var programContext);
+            QueryParser.ProgramContext programContext = null;
+            
+            try
+            {
+                programContext = Parse(query);
+            }
+            catch (Exception e)
+            {
+                Logger.LogException(e);
+            }
+            
             var result = programContext.VisitProgram(zmi);
             var zone = zmi.PathName;
 			
@@ -29,12 +41,17 @@ namespace Interpreter
             }
         }
 
-        public static bool TryParse(string query, out QueryParser.ProgramContext programContext)
+        public static QueryParser.ProgramContext Parse(string query)
         {
             var lexer = new QueryLexer(new AntlrInputStream(query));
+            lexer.RemoveErrorListeners();
+            lexer.AddErrorListener(new ThrowingErrorListener<int>());
+
             var parser = new QueryParser(new CommonTokenStream(lexer));
-            programContext = parser.program();
-            return programContext != null;
+            parser.RemoveErrorListeners();
+            parser.AddErrorListener(new ThrowingErrorListener<IToken>());
+
+            return parser.program();
         }
 
         private static IEnumerable<QueryResult> VisitProgram(this QueryParser.ProgramContext context, ZMI zmi) =>
@@ -46,6 +63,16 @@ namespace Interpreter
             if (toReturn.Any(maybe => maybe.Match(v => v.Name == null, () => false)))
                 throw new ArgumentException("All items in top-level SELECT must be aliased");
             return toReturn.Sequence().Match(list => list, () => new List<QueryResult>());
+        }
+    }
+    
+    // got from Antlr4 C# tutorial
+    // https://github.com/michael-jay/antlr4-dotnet-core/blob/master/visitor/src/Calculator/Parsing/ThrowingErrorListener.cs
+    internal class ThrowingErrorListener<TSymbol> : IAntlrErrorListener<TSymbol>
+    {
+        public void SyntaxError(TextWriter output, IRecognizer recognizer, TSymbol offendingSymbol, int line, int charPositionInLine, string msg, RecognitionException e)
+        {
+            throw new Exception($"line {line}:{charPositionInLine} {msg}");
         }
     }
 }

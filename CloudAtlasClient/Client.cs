@@ -30,14 +30,13 @@ namespace CloudAtlasClient
         static void Main(string[] args)
         {
             IServerData serverData = null;
-            IServerData queryServerData = null;
             Uri apiUri = null;
             
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(opts =>
                 {
-                    serverData = new ServerData(opts.ServerHostName, opts.ServerPortNumber); 
-                    queryServerData = new ServerData(opts.SignerHostName, opts.SignerPortNumber); 
+                    serverData = new ServerData(opts.ServerHostName, opts.ServerPortNumber, opts.SignerHostName,
+                        opts.SignerPortNumber); 
                     apiUri = new Uri($"http://{opts.HostName}:{opts.PortNumber}");
                 })
                 .WithNotParsed(errs =>
@@ -47,7 +46,7 @@ namespace CloudAtlasClient
                     Environment.Exit(1);
                 });
 
-            using var host = new NancyHost(new Bootstrapper(serverData, queryServerData), apiUri);
+            using var host = new NancyHost(new Bootstrapper(serverData), apiUri);
             host.Start();
             Console.WriteLine($"Client running on {apiUri}. Press Enter to stop it...");
             Console.ReadLine();

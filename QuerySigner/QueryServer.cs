@@ -5,15 +5,13 @@ using System.Threading;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Shared;
-using Shared.Monads;
+using Shared.Logger;
 using Shared.RPC;
 using Shared.Serializers;
 using Attribute = Shared.Model.Attribute;
 
 namespace QuerySigner
 {
-    using EitherResponse = Either<RefStruct<SignError>, SignedQuery>;
-
     public class QueryServer : IDisposable
     {
         private readonly Thread _thread;
@@ -51,26 +49,26 @@ namespace QuerySigner
             "level", "name", "owner", "timestamp", "contacts", "update", "cardinality"
         };
 
-        private Task<EitherResponse> SignQuery(SignRequest request, ServerCallContext context)
+        private Task<SignedQuery> SignQuery(SignRequest request, ServerCallContext context)
         {
+            Logger.Log("SignQuery");
             var (query, name) = request;
 
             lock (_queries)
             {
                 if (_queries.Contains(name))
-                    return Task.FromResult(EitherResponse.Left(new RefStruct<SignError>(SignError.ConflictingQuery)));
+                    return Task.FromResult(new SignedQuery {SignError = SignError.ConflictingQuery});
 
                 if (!Attribute.IsProperName(name) || !Attribute.IsQuery(name))
-                    return Task.FromResult(EitherResponse.Left(new RefStruct<SignError>(SignError.IncorrectName)));
+                    return Task.FromResult(new SignedQuery {SignError = SignError.IncorrectName});
 
                 try
                 {
-                    if (!Interpreter.Interpreter.TryParse(query, out _))
-                        return Task.FromResult(EitherResponse.Left(new RefStruct<SignError>(SignError.IncorrectQuery)));
+                    Interpreter.Interpreter.Parse(query); // throws exception in case of bad query
                 }
                 catch (Exception)
                 {
-                    return Task.FromResult(EitherResponse.Left(new RefStruct<SignError>(SignError.IncorrectQuery)));
+                    return Task.FromResult(new SignedQuery {SignError = SignError.IncorrectQuery});
                 }
 
                 _queries.Add(name);
@@ -79,22 +77,35 @@ namespace QuerySigner
             var serialized = CustomSerializer.Serializer.Serialize(request);
             using var sha256 = SHA256.Create();
             var hash = sha256.ComputeHash(serialized);
-            var encryptedHash = _rsa.Encrypt(hash, RSAEncryptionPadding.Pkcs1);
-            return Task.FromResult(EitherResponse.Right(new SignedQuery
+            var encryptedHash = _rsa.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return Task.FromResult(new SignedQuery
             {
+                SignError = SignError.NoError,
                 SerializedData = serialized,
                 HashSign = encryptedHash
-            }));
+            });
         }
 
-        private Task<RefStruct<bool>> UnsignQuery(string name, ServerCallContext context)
+        private Task<UnsignQuery> UnsignQuery(string name, ServerCallContext context)
         {
             bool queryRemoved;
 
             lock (_queries)
                 queryRemoved = _queries.Remove(name);
 
-            return Task.FromResult(queryRemoved.ToNullableWrapper());
+            if (!queryRemoved)
+                return Task.FromResult(new UnsignQuery {UnsignSuccessful = false});
+            
+            var serialized = CustomSerializer.Serializer.Serialize(name);
+            using var sha256 = SHA256.Create();
+            var hash = sha256.ComputeHash(serialized);
+            var encryptedHash = _rsa.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            return Task.FromResult(new UnsignQuery
+            {
+                UnsignSuccessful = true,
+                SerializedName = serialized,
+                HashSign = encryptedHash
+            });
         }
     }
 }

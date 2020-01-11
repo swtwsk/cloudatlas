@@ -1,21 +1,18 @@
 using Grpc.Core;
-using Shared.Monads;
 using Shared.Serializers;
 
 namespace Shared.RPC
 {
-    using SignResponse = Either<RefStruct<SignError>, SignedQuery>;
-    
     public class SignerMethods
     {
         private const string SERVICE_NAME = "CloudAtlasQuerySigner";
 
-        public static Method<SignRequest, SignResponse> SignQuery { get; } =
-            MethodsUtils.GetMethod<SignRequest, SignResponse>(MethodType.Unary, SERVICE_NAME, "SignQuery",
+        public static Method<SignRequest, SignedQuery> SignQuery { get; } =
+            MethodsUtils.GetMethod<SignRequest, SignedQuery>(MethodType.Unary, SERVICE_NAME, "SignQuery",
                 CustomSerializer.Serializer);
 
-        public static Method<string, RefStruct<bool>> UnsignQuery { get; } =
-            MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "UnsignQuery",
+        public static Method<string, UnsignQuery> UnsignQuery { get; } =
+            MethodsUtils.GetMethod<string, UnsignQuery>(MethodType.Unary, SERVICE_NAME, "UnsignQuery",
                 CustomSerializer.Serializer);
     }
 
@@ -33,7 +30,8 @@ namespace Shared.RPC
     
     public class SignedQuery
     {
-        public byte[] SerializedData { get; set; }
+        public SignError SignError { get; set; } 
+        public byte[] SerializedData { get; set; }  // typeof = SignRequest
         public byte[] HashSign { get; set; }
 
         public void Deconstruct(out byte[] serializedData, out byte[] hashSign)
@@ -43,8 +41,22 @@ namespace Shared.RPC
         }
     }
 
+    public class UnsignQuery
+    {
+        public bool UnsignSuccessful { get; set; }
+        public byte[] SerializedName { get; set; }
+        public byte[] HashSign { get; set; }
+
+        public void Deconstruct(out byte[] serializedName, out byte[] hashSign)
+        {
+            serializedName = SerializedName;
+            hashSign = HashSign;
+        }
+    }
+
     public enum SignError
     {
+        NoError,
         IncorrectQuery,
         ConflictingQuery,
         IncorrectName,

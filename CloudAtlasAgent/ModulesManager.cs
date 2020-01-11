@@ -1,5 +1,6 @@
 using System;
 using System.Net;
+using System.Security.Cryptography;
 using CloudAtlasAgent.Modules;
 using CloudAtlasAgent.Modules.GossipStrategies;
 using Grpc.Core;
@@ -20,7 +21,7 @@ namespace CloudAtlasAgent
         private GossipModule _gossip;
         
         public ModulesManager(int maxPacketSize, string receiverHost, int receiverPort, int receiverTimeout,
-            string rmiHost, int rmiPort, int queriesRecomputeTimer, int purgeTimer,
+            string rmiHost, int rmiPort, int queriesRecomputeTimer, int purgeTimer, RSA rsa,
             int gossipTimer, int retryDelay, int maxRetriesCount, ZMI zmi)
         {
             Logger.Log("Creating modules...");
@@ -38,7 +39,7 @@ namespace CloudAtlasAgent
             
             AddModule(_timer = new TimerModule(_executor));
             AddModule(_communication = new CommunicationModule(_executor, maxPacketSize, IPAddress.Parse(receiverHost), receiverPort, receiverTimeout));
-            AddModule(_zmi = new ZMIModule(zmi, queriesRecomputeTimer, purgeTimer, _executor));
+            AddModule(_zmi = new ZMIModule(zmi, rsa, queriesRecomputeTimer, purgeTimer, _executor));
             AddModule(_rmi = new RMIModule(_executor, new ServerPort(rmiHost, rmiPort, ServerCredentials.Insecure)));
             AddModule(_gossip = new GossipModule(_executor, gossipTimer, retryDelay, maxRetriesCount, new RoundRobinGossipStrategy()));
         }

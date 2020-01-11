@@ -79,16 +79,17 @@ namespace CloudAtlasAgent.Modules
 
 		private Task<RefStruct<bool>> InstallQuery(SignedQuery query, ServerCallContext ctx)
 		{
-			Logger.Log($"InstallQuery({query})");
+			Logger.Log($"InstallQuery");
 			return ProcessTask<RefStruct<bool>, InstallQueryRequestMessage, InstallQueryResponseMessage>(
 				new InstallQueryRequestMessage(GetType(), typeof(ZMIModule), query));
 		}
 
-		private Task<RefStruct<bool>> UninstallQuery(string queryName, ServerCallContext ctx)
+		private Task<RefStruct<bool>> UninstallQuery(UnsignQuery unsignRequest, ServerCallContext ctx)
 		{
-			Logger.Log($"UninstallQuery({queryName})");
+			Logger.Log($"UninstallQuery");
+
 			return ProcessTask<RefStruct<bool>, UninstallQueryRequestMessage, UninstallQueryResponseMessage>(
-				new UninstallQueryRequestMessage(GetType(), typeof(ZMIModule), queryName));
+				new UninstallQueryRequestMessage(GetType(), typeof(ZMIModule), unsignRequest));
 		}
 
 		private Task<RefStruct<bool>> SetAttribute(AttributeMessage attributeMessage, ServerCallContext ctx)

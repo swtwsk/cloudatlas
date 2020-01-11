@@ -1,10 +1,12 @@
 ﻿using System;
 using System.IO;
+using System.Security.Cryptography;
 using CommandLine;
 using Grpc.Core;
 using Shared.Logger;
 using Shared.Model;
 using Shared.Parsers;
+using Shared.RSA;
 
 namespace CloudAtlasAgent
 {
@@ -17,6 +19,9 @@ namespace CloudAtlasAgent
 			
 			[Option('p', "port", Default = 5000, HelpText = "Server port number")]
 			public int PortNumber { get; set; }
+			
+			[Option('k', "key", HelpText = "Path to public key", SetName = "keys", Required = true)]
+			public string PublicKeyPath { get; set; }
 			
 			[Option('c', "config", Default = "zmis.txt", HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
@@ -51,6 +56,7 @@ namespace CloudAtlasAgent
 			var receiverPort = 0;
 
 			ZMI fatherZmi = null;
+			RSA rsa = null;
 
 			Parser.Default.ParseArguments<Options>(args)
 				.WithParsed(opts =>
@@ -63,6 +69,8 @@ namespace CloudAtlasAgent
 					// TODO: CHANGE IT!
 					receiverHost = serverPort.Host;
 					receiverPort = serverPort.Port + 1;
+
+					rsa = RSAFactory.FromPublicKey(opts.PublicKeyPath);
 				})
 				.WithNotParsed(errs =>
 				{
@@ -85,7 +93,7 @@ namespace CloudAtlasAgent
 			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
 
 			var manager = new ModulesManager(2000, receiverHost, receiverPort, 3000, serverPort.Host,
-				serverPort.Port, 5, 20, 7, 2, 5, myZmi);
+				serverPort.Port, 5, 20, rsa, 7, 2, 5, myZmi);
 			
 			Console.WriteLine($"Agent started on {receiverHost}:{receiverPort}\nRPC started on {serverPort.Host}:{serverPort.Port}");
 			Console.WriteLine("Press ENTER to exit...");

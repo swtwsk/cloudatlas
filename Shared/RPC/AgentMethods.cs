@@ -26,8 +26,8 @@ namespace Shared.RPC
             MethodsUtils.GetMethod<SignedQuery, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "InstallQuery",
                 CustomSerializer.Serializer);
 
-        public static Method<string, RefStruct<bool>> UninstallQuery { get; } =
-            MethodsUtils.GetMethod<string, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "UninstallQuery",
+        public static Method<UnsignQuery, RefStruct<bool>> UninstallQuery { get; } =
+            MethodsUtils.GetMethod<UnsignQuery, RefStruct<bool>>(MethodType.Unary, SERVICE_NAME, "UninstallQuery",
                 CustomSerializer.Serializer);
         
         public static Method<AttributeMessage, RefStruct<bool>> SetAttribute { get; } =

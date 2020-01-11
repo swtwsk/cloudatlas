@@ -18,12 +18,10 @@ namespace CloudAtlasClient
     public sealed class WebRequestHandler : NancyModule
     {
         private readonly IServerData _serverData;
-        private readonly IServerData _queryServerData;
         
-        public WebRequestHandler(IServerData serverData, IServerData queryServerData)
+        public WebRequestHandler(IServerData serverData)
         {
             _serverData = serverData;
-            _queryServerData = queryServerData;
             
             Get("/", _ => Response.AsFile("dist/index.html", "text/html"));
             Get("/zmis", async _ =>
@@ -55,12 +53,12 @@ namespace CloudAtlasClient
                 foreach (var (i, query) in dict)
                 {
                     var signResult = await SignQuery(GetSignerInvoker(), query);
-                    if (signResult.IsLeft)
+                    if (signResult.SignError != SignError.NoError) // TODO: Handle errors
                     {
                         returnDict[i] = false;
                         continue;
                     }
-                    var result = await InstallAsync(GetInvoker(), signResult.RightVal);
+                    var result = await InstallAsync(GetInvoker(), signResult);
                     returnDict[i] = result;
                 }
                 var response = (Response) JsonConvert.SerializeObject(returnDict);
@@ -70,18 +68,23 @@ namespace CloudAtlasClient
             Delete("/query/{name}", async parameters =>
             {
                 string name = parameters.name;
-                var result = await UninstallAsync(GetInvoker(), name);
+                using var call = GetSignerInvoker()
+                    .AsyncUnaryCall(SignerMethods.UnsignQuery, null, new CallOptions(), name);
+                
+                var unsignQuery = await call.ResponseAsync;
+                if (!unsignQuery.UnsignSuccessful)
+                    return false;
+                
+                var result = await UninstallAsync(GetInvoker(), unsignQuery);
                 return Response.AsJson(result);
             });
         }
 
-        private async Task<Either<RefStruct<SignError>, SignedQuery>> SignQuery(CallInvoker invoker, string query)
+        private async Task<SignedQuery> SignQuery(CallInvoker invoker, string query)
         {
             var q = query.Split(":", 2);
             if (q.Length != 2)
-            {
-                return SignError.IncorrectQuery.ToNullableWrapper().Left<RefStruct<SignError>, SignedQuery>();
-            }
+                return new SignedQuery {SignError = SignError.IncorrectQuery};
 
             var name = q[0];
             var innerQuery = q[1];
@@ -97,7 +100,7 @@ namespace CloudAtlasClient
         
         private DefaultCallInvoker GetSignerInvoker()
         {
-            var channel = new Channel(_queryServerData.HostName, _queryServerData.PortNumber, ChannelCredentials.Insecure);
+            var channel = new Channel(_serverData.SignerHostName, _serverData.SignerPortNumber, ChannelCredentials.Insecure);
             return new DefaultCallInvoker(channel);
         }
         
@@ -138,9 +141,9 @@ namespace CloudAtlasClient
             return result.Ref;
         }
         
-        private static async Task<bool> UninstallAsync(CallInvoker invoker, string queryName)
+        private static async Task<bool> UninstallAsync(CallInvoker invoker, UnsignQuery unsignResponse)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.UninstallQuery, null, new CallOptions(), queryName);
+            using var call = invoker.AsyncUnaryCall(AgentMethods.UninstallQuery, null, new CallOptions(), unsignResponse);
             var result = await call.ResponseAsync;
             return result.Ref;
         }
@@ -155,12 +158,10 @@ namespace CloudAtlasClient
     public class Bootstrapper : DefaultNancyBootstrapper
     {
         private readonly IServerData _serverData;
-        private readonly IServerData _queryServerData;
 
-        public Bootstrapper(IServerData serverData, IServerData queryServerData)
+        public Bootstrapper(IServerData serverData)
         {
             _serverData = serverData;
-            _queryServerData = queryServerData;
         }
 
         protected override void ConfigureConventions(NancyConventions nancyConventions)

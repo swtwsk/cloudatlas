@@ -2,32 +2,39 @@
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using CloudAtlasAgent.Modules.Messages;
 using CloudAtlasAgent.Modules.Messages.ZMIMessages;
 using Shared.Logger;
 using Shared.Model;
+using Shared.RPC;
+using Shared.Serializers;
 
 namespace CloudAtlasAgent.Modules
 {
     public class ZMIModule : IModule
     {
-        private ZMI _zmi;
+        private readonly ZMI _zmi;
         private readonly IExecutor _executor;
-        private readonly Dictionary<string, string> _queries = new Dictionary<string, string>();
-        private ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
+        private readonly RSA _rsa;
+	        
+	    private readonly Dictionary<string, string> _queries = new Dictionary<string, string>();
+	    private ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
+	    
         private readonly int _recomputeTimer;
         private readonly int _purgeTimer;
         private int _timerRequestId = 0;
 
         private const string CARDINALITY_QUERY = "SELECT sum(cardinality) AS cardinality";
         
-        public ZMIModule(ZMI zmi, int recomputeTimer, int purgeTimer, IExecutor executor)
+        public ZMIModule(ZMI zmi, RSA rsa, int recomputeTimer, int purgeTimer, IExecutor executor)
         {
             _zmi = zmi;
-            _executor = executor;
+            _rsa = rsa;
             _recomputeTimer = recomputeTimer;
             _purgeTimer = purgeTimer;
+            _executor = executor;
             
             PrepareZMI();
             
@@ -198,8 +205,21 @@ namespace CloudAtlasAgent.Modules
         private void InstallQuery(InstallQueryRequestMessage requestMessage)
         {
 	        Logger.Log($"InstallQuery({requestMessage.Query})");
+
+	        var (serializedData, hashSign) = requestMessage.Query;
 	        
-	        
+	        using var sha256 = SHA256.Create();
+	        var hash = sha256.ComputeHash(serializedData);
+	        var verified = _rsa.VerifyHash(hash, hashSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+	        if (!verified)
+	        {
+		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
+			        false));
+		        return;
+	        }
+
+	        var (innerQueries, name) = CustomSerializer.Serializer.Deserialize<SignRequest>(serializedData);
 
 	        bool queryExecuted;
 
@@ -207,6 +227,7 @@ namespace CloudAtlasAgent.Modules
 	        {
 		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
 			        requestMessage, false));
+		        // TODO: Remove query from signer
 		        return;
 	        }
 
@@ -236,10 +257,25 @@ namespace CloudAtlasAgent.Modules
         }
 
         private void UninstallQuery(UninstallQueryRequestMessage requestMessage)
-		{
-			Logger.Log($"UninstallQuery({requestMessage.QueryName})");
+        {
+	        var (serializedData, hashSign) = requestMessage.UnsignRequest;
+	        
+	        using var sha256 = SHA256.Create();
+	        var hash = sha256.ComputeHash(serializedData);
+	        var verified = _rsa.VerifyHash(hash, hashSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-			var toReturn = _queries.Remove(requestMessage.QueryName);
+	        if (!verified)
+	        {
+		        _executor.AddMessage(new UninstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
+			        false));
+		        return;
+	        }
+	        
+	        var name = CustomSerializer.Serializer.Deserialize<string>(serializedData);
+	        
+			Logger.Log($"UninstallQuery({name})");
+
+			var toReturn = _queries.Remove(name);
 			_executor.AddMessage(
 				new UninstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage, toReturn));
 		}

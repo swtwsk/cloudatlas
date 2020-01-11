@@ -3,6 +3,7 @@ using System.IO;
 using System.Security.Cryptography;
 using CommandLine;
 using Grpc.Core;
+using Shared.RSA;
 
 namespace QuerySigner
 {
@@ -13,10 +14,10 @@ namespace QuerySigner
             [Option("generate", HelpText = "Generate new RSA keys", SetName = "gen", Required = true)]
             public bool Generate { get; set; }
             
-            [Option("genpath", HelpText = "Path prefix for generating RSA keys", SetName = "gen", Required = true)]
+            [Option("genpath", Default = "", HelpText = "Path prefix for generating RSA keys", SetName = "gen")]
             public string GenPathPrefix { get; set; }
             
-            [Option('k', "key", Default = null, HelpText = "Path to private key", SetName = "keys", Required = true)]
+            [Option('k', "key", HelpText = "Path to private key", SetName = "keys", Required = true)]
             public string PrivateKeyPath { get; set; }
             
             [Option('h', "host", Default = "127.0.0.1", HelpText = "Query signer host name")]
@@ -45,7 +46,7 @@ namespace QuerySigner
                         Environment.Exit(0);
                     }
 
-                    rsa = FromKey(opts.PrivateKeyPath);
+                    rsa = RSAFactory.FromPrivateKey(opts.PrivateKeyPath);
                 })
                 .WithNotParsed(errs =>
                 {
@@ -98,14 +99,6 @@ namespace QuerySigner
                 stream.Write(privateKey);
                 stream.Close();
             }
-        }
-
-        private static RSA FromKey(string privatePath)
-        {
-            var rsa = new RSACryptoServiceProvider(2048);
-            var privateInput = File.ReadAllText(privatePath);
-            rsa.FromXmlString(privateInput);
-            return rsa;
         }
     }
 }
