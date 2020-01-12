@@ -13,10 +13,10 @@ namespace Fetcher
 {
     class Fetcher
     {
-        private const string ZMI_TO_FETCH = "/uw/violet07";
-
         private static string _filename;
         private static string FileName => _filename ??= Guid.NewGuid().ToString();
+
+        private static string _contactsFilename;
         
         class Options
         {
@@ -26,8 +26,14 @@ namespace Fetcher
             [Option("sPort", Default = 5000, HelpText = "Server port number")]
             public int ServerPortNumber { get; set; }
             
+            [Option('n', "name", Required = true, HelpText = "Name of ZMI node to fetch to")]
+            public string ZmiName { get; set; }
+            
             [Option('i', "inifile", Required = true, HelpText = "Location of .ini file")]
             public string IniFileName { get; set; }
+
+            [Option('c', "contacts", Default = null, Required = false, HelpText = "Location of fallback contacts file")]
+            public string ContactsFileName { get; set; }
         }
         
         static void Main(string[] args)
@@ -35,13 +41,21 @@ namespace Fetcher
             var serverHostName = "";
             var serverPortNumber = 0;
             var collectionInterval = 1000;
+            var zmiName = "";
 
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed(opts =>
                 {
                     serverHostName = opts.ServerHostName;
                     serverPortNumber = opts.ServerPortNumber;
-                    if (!TryParseCollectionInterval(opts.IniFileName, out collectionInterval))
+                    zmiName = opts.ZmiName;
+
+                    _contactsFilename = opts.ContactsFileName;
+
+                    using var file = File.OpenRead(opts.IniFileName);
+                    using var stream = new StreamReader(file);
+                    if (!INIParser.ParseIni(stream).TryGetValue("collectionInterval", out var value) ||
+                        !int.TryParse(value, out collectionInterval))
                     {
                         Console.WriteLine($"COULDN'T FIND COLLECTION INTERVAL IN {opts.IniFileName} file");
                         Environment.Exit(1);
@@ -56,7 +70,7 @@ namespace Fetcher
             
             var cts = new CancellationTokenSource();
             Console.WriteLine("Fetcher running. Press Enter to stop it...");
-            var t = RunAsync(serverHostName, serverPortNumber, FileName, collectionInterval, cts.Token);
+            var t = RunAsync(serverHostName, serverPortNumber, FileName, collectionInterval, zmiName, cts.Token);
             Console.ReadLine();
             
             cts.Cancel();
@@ -78,30 +92,8 @@ namespace Fetcher
             }
         }
 
-        private static bool TryParseCollectionInterval(string fileName, out int interval)
-        {
-            using (var file = File.OpenRead(fileName))
-            {
-                var stream = new StreamReader(file);
-                string line;
-                while ((line = stream.ReadLine()) != null)
-                {
-                    var split = line.Split('=', 2);
-                    if (split.Length != 2)
-                        continue;
-                    var key = split[0];
-                    var value = split[1];
-                    if (key.Equals("collectionInterval") && int.TryParse(value, out interval))
-                        return true;
-                }
-            }
-
-            interval = -1;
-            return false;
-        }
-
-        private static async Task RunAsync(string hostName, int portNumber, string fileName, int collectionInterval,
-            CancellationToken token)
+        private static async Task RunAsync(string hostName, int portNumber, string fileName, int collectionInterval, 
+            string zmiName, CancellationToken token)
         {
             while (true)
             {
@@ -113,8 +105,9 @@ namespace Fetcher
                 var channel = new Channel(hostName, portNumber, ChannelCredentials.Insecure);
                 var invoker = new DefaultCallInvoker(channel);
 
-                var _ = ProcessFile(invoker, ZMI_TO_FETCH, fileName)
+                await ProcessFile(invoker, zmiName, fileName)
                     .ContinueWith(async _ => await channel.ShutdownAsync(), token);
+                await ProcessContactsFile(invoker);
                 await Task.Delay(collectionInterval, token);
             }
         }
@@ -133,6 +126,26 @@ namespace Fetcher
                 
                 ZMIParser.TryParseAttributeLine(line, out var attribute, out var value);
                 await SetAttribute(invoker, pathName, attribute, value);
+            }
+        }
+        
+        private static readonly AttributeType ContactSetAttribute = new AttributeTypeCollection(PrimaryType.Set,
+            AttributeTypePrimitive.Contact);
+
+        private static async Task ProcessContactsFile(CallInvoker invoker)
+        {
+            if (string.IsNullOrEmpty(_contactsFilename))
+                return;
+            
+            await using var file = File.OpenRead(_contactsFilename);
+            var stream = new StreamReader(file);
+            string line;
+            if ((line = stream.ReadLine()) != null)
+            {
+                ZMIParser.TryParseAttributeLine(line, out var attribute, out var value);
+
+                if (attribute.Name == "contacts" && value.AttributeType.IsCompatible(ContactSetAttribute))
+                    await SetContacts(invoker, (ValueSet) value);
             }
         }
 

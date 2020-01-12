@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
+using CloudAtlasAgent.Modules.GossipStrategies;
 using CommandLine;
-using Grpc.Core;
+using Shared;
 using Shared.Logger;
 using Shared.Model;
 using Shared.Parsers;
@@ -14,17 +16,14 @@ namespace CloudAtlasAgent
 	{
 		class Options
 		{
-			[Option('h', "host", Default = "127.0.0.1", HelpText = "Server host name")]
-			public string HostName { get; set; }
-			
-			[Option('p', "port", Default = 5000, HelpText = "Server port number")]
-			public int PortNumber { get; set; }
-			
-			[Option('k', "key", HelpText = "Path to public key", SetName = "keys", Required = true)]
+			[Option('k', "key", Required = true, HelpText = "Path to public key")]
 			public string PublicKeyPath { get; set; }
 			
 			[Option('c', "config", Default = "zmis.txt", HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
+			
+			[Option('i', "inifile", Required = true, HelpText = "Location of .ini file")]
+			public string IniFileName { get; set; }
 			
 			[Option('n', "name", Required = true, HelpText = "Name of ZMI node")]
 			public string ZmiName { get; set; }
@@ -50,25 +49,22 @@ namespace CloudAtlasAgent
 
 		public static void Main(string[] args)
 		{
-			ServerPort serverPort = null;
 			var zmiName = string.Empty;
-			var receiverHost = string.Empty;
-			var receiverPort = 0;
-
 			ZMI fatherZmi = null;
 			RSA rsa = null;
+
+			IDictionary<string, string> configuration = new Dictionary<string, string>();
 
 			Parser.Default.ParseArguments<Options>(args)
 				.WithParsed(opts =>
 				{
 					if (!TryParseConfig(opts.ConfigFile, out fatherZmi))
 						Environment.Exit(1);
-					serverPort = new ServerPort(opts.HostName.Trim(' '), opts.PortNumber, ServerCredentials.Insecure);
 					zmiName = opts.ZmiName.Trim(' ');
-
-					// TODO: CHANGE IT!
-					receiverHost = serverPort.Host;
-					receiverPort = serverPort.Port + 1;
+					
+					using var file = File.OpenRead(opts.IniFileName);
+					using var stream = new StreamReader(file);
+					configuration = INIParser.ParseIni(stream);
 
 					rsa = RSAFactory.FromPublicKey(opts.PublicKeyPath);
 				})
@@ -78,9 +74,6 @@ namespace CloudAtlasAgent
 						Console.WriteLine($"OPTIONS PARSE ERROR: {err}");
 					Environment.Exit(1);
 				});
-
-			Logger.LoggerLevel = LoggerLevel.All;
-			Logger.LoggerVerbosity = LoggerVerbosity.WithFileName;
 
 			var creationTimestamp = new ValueTime(DateTimeOffset.Now);
 			
@@ -92,14 +85,127 @@ namespace CloudAtlasAgent
 			}
 			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
 
-			var manager = new ModulesManager(2000, receiverHost, receiverPort, 3000, serverPort.Host,
-				serverPort.Port, 5, 20, rsa, 7, 2, 5, myZmi);
+			var manager = ManagerFromIni(configuration, rsa, myZmi);
 			
-			Console.WriteLine($"Agent started on {receiverHost}:{receiverPort}\nRPC started on {serverPort.Host}:{serverPort.Port}");
 			Console.WriteLine("Press ENTER to exit...");
 			Console.ReadLine();
 			Console.WriteLine("End");
 			manager.Dispose();
+		}
+
+		private static ModulesManager ManagerFromIni(IDictionary<string, string> configuration, RSA rsa, ZMI zmi)
+		{
+			if (!configuration.TryGetValue("receiverHost", out var receiverHost))
+				receiverHost = "127.0.0.1";
+			if (!configuration.TryGetInt("receiverPort", out var receiverPort))
+				receiverPort = 5000;
+			if (!configuration.TryGetValue("rpcHost", out var rpcHost))
+				rpcHost = "127.0.0.1";
+			if (!configuration.TryGetInt("rpcPort", out var rpcPort))
+				rpcPort = 5001;
+			if (!configuration.TryGetInt("queryInterval", out var queryInterval))
+				queryInterval = 5;
+			if (!configuration.TryGetInt("gossipInterval", out var gossipInterval))
+				gossipInterval = 5;
+			if (!configuration.TryGetInt("purgeInterval", out var purgeInterval))
+				purgeInterval = 60;
+			if (!configuration.TryGetInt("receiverTimeout", out var receiverTimeout))
+				receiverTimeout = 3000;
+			if (!configuration.TryGetInt("retryInterval", out var retryInterval))
+				retryInterval = 2;
+			if (!configuration.TryGetInt("maxRetriesCount", out var maxRetriesCount))
+				maxRetriesCount = 5;
+			if (!configuration.TryGetInt("maxPacketSize", out var maxPacketSize))
+				maxPacketSize = 2000;
+			if (!configuration.TryGetValue("gossipStrategy", out var gossipStrategyStr) ||
+			    !TryGetGossipStrategy(gossipStrategyStr, out var gossipStrategy))
+				gossipStrategy = new RandomGossipStrategy();
+			if (!configuration.TryGetValue("loggerLevel", out var loggerLevelStr) ||
+			    !TryGetLoggerLevel(loggerLevelStr, out var loggerLevel))
+				loggerLevel = LoggerLevel.All;
+			if (!configuration.TryGetValue("loggerVerbosity", out var loggerVerbosityStr) ||
+			    !TryGetLoggerVerbosity(loggerVerbosityStr, out var loggerVerbosity))
+				loggerVerbosity = LoggerVerbosity.WithFileName;
+
+			receiverHost = receiverHost.Trim(' ');
+			rpcHost = rpcHost.Trim(' ');
+			
+			Logger.LoggerLevel = loggerLevel;
+			Logger.LoggerVerbosity = loggerVerbosity;
+
+			return new ModulesManager(maxPacketSize, receiverHost, receiverPort, receiverTimeout, rpcHost, rpcPort,
+				queryInterval, purgeInterval, rsa, gossipStrategy, gossipInterval, retryInterval, maxRetriesCount, zmi);
+		}
+
+		private static bool TryGetGossipStrategy(string strategyName, out IGossipStrategy gossipStrategy)
+		{
+			switch (strategyName)
+			{
+				case "random":
+					gossipStrategy = new RandomGossipStrategy();
+					return true;
+				case "randomExp":
+					gossipStrategy = new RandomExponentialGossipStrategy();
+					return true;
+				case "roundRobin":
+					gossipStrategy = new RoundRobinGossipStrategy();
+					return true;
+				case "roundRobinExp":
+					gossipStrategy = new RoundRobinExponentialGossipStrategy();
+					return true;
+			}
+
+			gossipStrategy = null;
+			return false;
+		}
+
+		private static bool TryGetLoggerLevel(string loggerName, out LoggerLevel loggerLevel)
+		{
+			switch (loggerName)
+			{
+				case "nothing":
+				case "Nothing":
+					loggerLevel = LoggerLevel.Nothing;
+					return true;
+				case "exception":
+				case "Exception":
+					loggerLevel = LoggerLevel.Exception;
+					return true;
+				case "error":
+				case "Error":
+					loggerLevel = LoggerLevel.Error;
+					return true;
+				case "warning":
+				case "Warning":
+					loggerLevel = LoggerLevel.Warning;
+					return true;
+				case "all":
+				case "All":
+					loggerLevel = LoggerLevel.All;
+					return true;
+			}
+
+			loggerLevel = LoggerLevel.All;
+			return false;
+		}
+
+		private static bool TryGetLoggerVerbosity(string verbosityName, out LoggerVerbosity loggerVerbosity)
+		{
+			switch (verbosityName.ToLower())
+			{
+				case "withfilepath":
+					loggerVerbosity = LoggerVerbosity.WithFilePath;
+					return true;
+				case "withfilename":
+					loggerVerbosity = LoggerVerbosity.WithFileName;
+					return true;
+				case "withoutfilepath":
+					loggerVerbosity = LoggerVerbosity.WithoutFilePath;
+					return true;
+			}
+
+			loggerVerbosity = LoggerVerbosity.WithFileName;
+			return false;
 		}
 	}
 }

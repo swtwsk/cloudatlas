@@ -28,6 +28,12 @@ namespace Shared
         }
 
         public static T RandomOrDefault<T>(this IList<T> list) => list.Count == 0 ? default : list.Random();
+
+        public static bool TryGetInt(this IDictionary<string, string> that, string key, out int value)
+        {
+            value = 0;
+            return that.TryGetValue(key, out var valueStr) && int.TryParse(valueStr, out value);
+        }
     }
 
     public static class Compare
