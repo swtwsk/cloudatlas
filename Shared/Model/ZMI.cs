@@ -100,6 +100,8 @@ namespace Shared.Model
             return currentZmi;
         }
 
+        public long GetLevel() => Attributes.TryGetValue("level", out var lvl) ? ((ValueInt) lvl).Value.Ref : -1;
+
         public List<Timestamps> AggregateTimeStampsFrom(int level)
         {
             var result = new List<Timestamps>();

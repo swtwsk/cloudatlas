@@ -9,9 +9,12 @@ using CloudAtlasAgent.Modules.Messages.GossipMessages;
 using Shared;
 using Shared.Logger;
 using Shared.Model;
+using Shared.RPC;
 
 namespace CloudAtlasAgent.Modules
 {
+    using QueryTuple = ValueTuple<string, long, SignedQuery>;
+    
     public class GossipModule : IModule
     {
         public GossipModule(IExecutor executor, int gossipTimer, int retryDelay, int maxRetriesCount,
@@ -55,8 +58,8 @@ namespace CloudAtlasAgent.Modules
         private readonly IExecutor _executor;
         private readonly IGossipStrategy _gossipStrategy;
 
-        private readonly IDictionary<Guid, (ZMI, IList<ValueContact>)> _zmis =
-            new Dictionary<Guid, (ZMI, IList<ValueContact>)>();
+        private readonly IDictionary<Guid, (ZMI, IList<ValueContact>, IList<QueryTuple>)> _zmis =
+            new Dictionary<Guid, (ZMI, IList<ValueContact>, IList<QueryTuple>)>();
         private readonly IDictionary<Guid, TimestampsInfo> _timestamps = new Dictionary<Guid, TimestampsInfo>();
         private readonly IDictionary<Guid, int> _retryIds = new Dictionary<Guid, int>();
 
@@ -71,6 +74,8 @@ namespace CloudAtlasAgent.Modules
             public int Level { get; }
             public IList<Timestamps> MyTimestamps { get; }
             public IList<Timestamps> HisTimestamps { get; set; }
+            public IList<string> MyQueryNames { get; }
+            public IList<string> HisQueryNames { get; set; }
             
             public ValueTime MySendTime { get; set; }
             public ValueTime HisReceiveTime { get; set; }
@@ -80,37 +85,43 @@ namespace CloudAtlasAgent.Modules
             public int Attempts { get; set; }
 
             public TimestampsInfo(ValueContact contact, int level, IList<Timestamps> myTimestamps,
-                IList<Timestamps> hisTimestamps, int attempts = 1)
+                IList<Timestamps> hisTimestamps, IList<string> myQueryNames, IList<string> hisQueryNames,
+                int attempts = 1)
             {
                 Contact = contact;
                 Level = level;
                 MyTimestamps = myTimestamps;
                 HisTimestamps = hisTimestamps;
+                MyQueryNames = myQueryNames;
+                HisQueryNames = hisQueryNames;
                 Attempts = attempts;
             }
             
             public TimestampsInfo(ValueContact contact, int level, IList<Timestamps> myTimestamps,
-                IList<Timestamps> hisTimestamps, ValueTime hisSendTime, ValueTime myReceiveTime) 
-                : this(contact, level, myTimestamps, hisTimestamps)
+                IList<Timestamps> hisTimestamps, IList<string> myQueryNames, IList<string> hisQueryNames,
+                ValueTime hisSendTime, ValueTime myReceiveTime) 
+                : this(contact, level, myTimestamps, hisTimestamps, myQueryNames, hisQueryNames)
             {
                 HisSendTime = hisSendTime;
                 MyReceiveTime = myReceiveTime;
             }
 
-            public TimestampsInfo(GossipTimestampAsk askMessage) 
-                : this(askMessage.Contact, askMessage.Level, null, askMessage.Timestamps)
+            public TimestampsInfo(GossipTimestampAsk askMessage)
+                : this(askMessage.Contact, askMessage.Level, null, askMessage.Timestamps, null, askMessage.QueryNames)
             {
                 HisSendTime = askMessage.SendTimestamp;
                 MyReceiveTime = askMessage.ReceiveTimestamp;
             }
-            
+
             public void Deconstruct(out ValueContact contact, out int level, out IList<Timestamps> myTimestamps,
-                out IList<Timestamps> hisTimestamps)
+                out IList<Timestamps> hisTimestamps, out IList<string> myQueryNames, out IList<string> hisQueryNames)
             {
                 contact = Contact;
                 level = Level;
                 myTimestamps = MyTimestamps;
                 hisTimestamps = HisTimestamps;
+                myQueryNames = MyQueryNames;
+                hisQueryNames = HisQueryNames;
             }
         }
 
@@ -139,7 +150,7 @@ namespace CloudAtlasAgent.Modules
                         case ZMIResponseMessage responseMessage:
                             lock (_zmis)
                                 _zmis.TryAdd(responseMessage.RequestGuid,
-                                    (responseMessage.Zmi, responseMessage.FallbackContacts));
+                                    (responseMessage.Zmi, responseMessage.FallbackContacts, responseMessage.Queries));
                             _incomingGossips.Add((responseMessage.RequestGuid, null));
                             break;
                         case GossipTimestampAsk gossipAskMessage:
@@ -157,7 +168,9 @@ namespace CloudAtlasAgent.Modules
                                     Logger.LogError($"Could not find timestamp infos for guid {guid}");
                                     continue;
                                 }
+                                
                                 timestamps.HisTimestamps = gossipResponseMessage.Timestamps;
+                                timestamps.HisQueryNames = gossipResponseMessage.QueryNames;
                                 timestamps.MySendTime = gossipResponseMessage.RequestSendTimestamp;
                                 timestamps.HisReceiveTime = gossipResponseMessage.RequestReceiveTimestamp;
                                 timestamps.HisSendTime = gossipResponseMessage.ResponseSendTimestamp;
@@ -173,7 +186,7 @@ namespace CloudAtlasAgent.Modules
                         case GossipStartMessage _:
                             var newGuid = Guid.NewGuid();
                             lock (_timestamps)
-                                _timestamps[newGuid] = new TimestampsInfo(null, -1, null, null);
+                                _timestamps[newGuid] = new TimestampsInfo(null, -1, null, null, null, null);
                             _executor.AddMessage(new ZMIAskMessage(GetType(), newGuid));
 
                             int retryId;
@@ -249,16 +262,16 @@ namespace CloudAtlasAgent.Modules
                 {
                     var (guid, gossipMessage) = _incomingGossips.Take();
                     
-                    (ZMI, IList<ValueContact>) zmiPair;
+                    (ZMI, IList<ValueContact>, IList<QueryTuple>) zmiTuple;
                     
                     lock (_zmis)
-                        if (!_zmis.TryGetValue(guid, out zmiPair))
+                        if (!_zmis.TryGetValue(guid, out zmiTuple))
                         {
                             Logger.LogError($"Could not find zmi for guid {guid}, aborting gossiping then");
                             continue;
                         }
 
-                    var (zmi, fallbacks) = zmiPair;
+                    var (zmi, fallbacks, queries) = zmiTuple;
 
                     switch (gossipMessage)
                     {
@@ -266,10 +279,11 @@ namespace CloudAtlasAgent.Modules
                             lock (_timestamps)
                             {
                                 var infoExists = _timestamps.TryGetValue(guid, out var timestampsInfo);
+                                var queryNames = queries.Select(tuple => tuple.Item1).ToList();
 
                                 var timestampsToSave = infoExists && timestampsInfo.HisTimestamps != null
-                                    ? RespondTimestamps(guid, timestampsInfo, zmi)
-                                    : SendInitialTimestamps(guid, zmi, fallbacks, infoExists ? timestampsInfo.Attempts : 1);
+                                    ? RespondTimestamps(guid, timestampsInfo, zmi, queryNames)
+                                    : SendInitialTimestamps(guid, zmi, fallbacks, queryNames, infoExists ? timestampsInfo.Attempts : 1);
 
                                 if (timestampsToSave != null)
                                     _timestamps[guid] = timestampsToSave;
@@ -292,7 +306,8 @@ namespace CloudAtlasAgent.Modules
             catch (Exception e) { Logger.LogException(e); }
         }
 
-        private TimestampsInfo SendInitialTimestamps(Guid guid, ZMI zmi, IList<ValueContact> fallbacks, int attempt)
+        private TimestampsInfo SendInitialTimestamps(Guid guid, ZMI zmi, IList<ValueContact> fallbacks,
+            IList<string> queryNames, int attempt)
         {
             if (!_gossipStrategy.TryGetContact(zmi, out var contact, out var level))
             {
@@ -304,7 +319,7 @@ namespace CloudAtlasAgent.Modules
                     Logger.LogWarning("No contacts at all");
                     // TODO: Multicast here
                     // return null
-                    return new TimestampsInfo(null, level, null, null, _maxRetriesCount);
+                    return new TimestampsInfo(null, level, null, null, null, null, _maxRetriesCount);
                 }
             }
             else
@@ -314,31 +329,31 @@ namespace CloudAtlasAgent.Modules
 
             Logger.Log($"Sending initial timestamps to {contact}");
             var (myTimestamps, myContact) = PrepareGossipTimestampsMessage(zmi, level);
-            var gossipAskMsg = new GossipTimestampAsk(guid, myTimestamps, level, myContact);
+            var gossipAskMsg = new GossipTimestampAsk(guid, myTimestamps, queryNames, level, myContact);
             
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
                 gossipAskMsg, contact.Address, contact.Port);
             _executor.AddMessage(newMsg);
 
-            return new TimestampsInfo(contact, level, myTimestamps, null, attempt);
+            return new TimestampsInfo(contact, level, myTimestamps, null, queryNames, null, attempt);
         }
 
-        private TimestampsInfo RespondTimestamps(Guid guid, TimestampsInfo message, ZMI zmi)
+        private TimestampsInfo RespondTimestamps(Guid guid, TimestampsInfo message, ZMI zmi, IList<string> queries)
         {
-            var (contact, level, _, hisTimestamps) = message;
+            var (contact, level, _, hisTimestamps, _, hisQueryNames) = message;
             
             Logger.Log($"Acquired timestamps from {contact}");
 
             var (myTimestamps, _) = PrepareGossipTimestampsMessage(zmi, level);
-            var gossipResponseMessage = new GossipTimestampResponseMessage(guid, myTimestamps, message.HisSendTime, 
-                message.MyReceiveTime);
+            var gossipResponseMessage = new GossipTimestampResponseMessage(guid, myTimestamps, queries,
+                message.HisSendTime, message.MyReceiveTime);
 
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule),
                 gossipResponseMessage, contact.Address, contact.Port);
             _executor.AddMessage(newMsg);
 
-            return new TimestampsInfo(contact, level, myTimestamps, hisTimestamps, message.HisSendTime,
-                message.MyReceiveTime);
+            return new TimestampsInfo(contact, level, myTimestamps, hisTimestamps, queries, hisQueryNames,
+                message.HisSendTime, message.MyReceiveTime);
         }
 
         private void ProcessTimestampResponse(Guid guid, GossipTimestampResponseMessage timestampResponseMessage, ZMI zmi)
@@ -352,7 +367,6 @@ namespace CloudAtlasAgent.Modules
                     return;
                 }
 
-//                timestampsInfo.HisTimestamps = timestampResponseMessage.Timestamps;
                 var myDelay = timestampResponseMessage.ResponseReceiveTimestamp.Subtract(timestampResponseMessage.RequestSendTimestamp);
                 var hisDelay = timestampResponseMessage.ResponseSendTimestamp.Subtract(timestampResponseMessage.RequestReceiveTimestamp);
                 var rtd = (ValueDuration) myDelay.Subtract(hisDelay);
@@ -383,15 +397,30 @@ namespace CloudAtlasAgent.Modules
                 _zmis.Remove(guid);
 
             _executor.AddMessage(new ZMIProcessGossipedMessage(GetType(), attributesMessage.Attributes,
-                attributesMessage.Delay));
+                attributesMessage.Queries, attributesMessage.Delay));
         }
 
-        private void PrepareAndSendAttributes(Guid guid, TimestampsInfo timestampsInfo, ZMI zmi, ValueDuration delay, bool isResponse)
+        private void PrepareAndSendAttributes(Guid guid, TimestampsInfo timestampsInfo, ZMI zmi, ValueDuration delay, 
+            bool isResponse)
         {
+            (ZMI, IList<ValueContact>, IList<QueryTuple>) zmiInfo;
+            
+            lock (_zmis)
+            {
+                if (!_zmis.TryGetValue(guid, out zmiInfo))
+                {
+                    Logger.LogError(
+                        $"Could not find zmiInfo when processing GossipTimestampResponseMessage. Aborting gossiping.");
+                    return;
+                }
+            }
+            
             var myInterestingAttributes =
                 ExtractInterestingAttributes(zmi, timestampsInfo.MyTimestamps, timestampsInfo.HisTimestamps, delay);
-            
-            var gossipMsg = new GossipAttributesMessage(guid, myInterestingAttributes, (ValueDuration) delay.Negate(), isResponse);
+            var myInterestingQueries = ExtractInterestingQueries(timestampsInfo.Level, zmiInfo.Item3, timestampsInfo.HisQueryNames);
+
+            var gossipMsg = new GossipAttributesMessage(guid, myInterestingAttributes, (ValueDuration) delay.Negate(),
+                myInterestingQueries, isResponse);
             var newMsg = new CommunicationSendMessage(GetType(), typeof(CommunicationModule), gossipMsg,
                 timestampsInfo.Contact.Address, timestampsInfo.Contact.Port);
             _executor.AddMessage(newMsg);
@@ -456,6 +485,17 @@ namespace CloudAtlasAgent.Modules
             }
 
             return myAttributes;
+        }
+
+        private static List<(long, SignedQuery)> ExtractInterestingQueries(long gossipLevel, IEnumerable<QueryTuple> myQueries, IEnumerable<string> hisQueries)
+        {
+            var valueTuples = myQueries.ToList();
+            
+            var myQueryNames = valueTuples.Select(tuple => tuple.Item1);
+            var interestingQueryNames = myQueryNames.Except(hisQueries).ToHashSet();
+
+            return valueTuples.Where(tuple => interestingQueryNames.Contains(tuple.Item1))
+                .Select(tuple => (Math.Min(tuple.Item2, gossipLevel - 1), tuple.Item3)).ToList();
         }
 
         public void Dispose()

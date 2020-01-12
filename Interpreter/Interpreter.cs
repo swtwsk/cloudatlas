@@ -12,13 +12,16 @@ namespace Interpreter
 {
     public static class Interpreter
     {
-        public static void ExecuteQueries(ZMI zmi, string query, bool log = false)
+        public static void ExecuteQueries(ZMI zmi, string query, long maxLevel = long.MaxValue, bool log = false)
         {
             if (!zmi.Sons.Any()) 
                 return;
+            
+            if (maxLevel < 0)
+                return;
 			
             foreach (var son in zmi.Sons)
-                ExecuteQueries(son, query, log);
+                ExecuteQueries(son, query, maxLevel - 1, log);
 
             QueryParser.ProgramContext programContext = null;
             

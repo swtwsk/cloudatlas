@@ -7,6 +7,7 @@ namespace CloudAtlasAgent.Modules.Messages.GossipMessages
     public class GossipTimestampAsk : GossipMessageBase, IReceivedTimestamped, ISendTimestamped
     {
         public IList<Timestamps> Timestamps { get; private set; }
+        public IList<string> QueryNames { get; private set; }
         public int Level { get; private set; }
         public ValueContact Contact { get; private set; }
         public ValueTime SendTimestamp { get; private set; }
@@ -14,10 +15,11 @@ namespace CloudAtlasAgent.Modules.Messages.GossipMessages
         
         private GossipTimestampAsk() {}
 
-        public GossipTimestampAsk(Guid guid, IList<Timestamps> timestamps, int level, ValueContact contact) 
+        public GossipTimestampAsk(Guid guid, IList<Timestamps> timestamps, IList<string> queryNames, int level, ValueContact contact) 
             : base(guid)
         {
             Timestamps = timestamps;
+            QueryNames = queryNames;
             Level = level;
             Contact = contact;
         }

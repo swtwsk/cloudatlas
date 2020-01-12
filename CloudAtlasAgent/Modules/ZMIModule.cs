@@ -18,15 +18,18 @@ namespace CloudAtlasAgent.Modules
         private readonly ZMI _zmi;
         private readonly IExecutor _executor;
         private readonly RSA _rsa;
-	        
-	    private readonly Dictionary<string, string> _queries = new Dictionary<string, string>();
+
+        private const string CARDINALITY_QUERY = "SELECT sum(cardinality) AS cardinality";
+        private static readonly string[] BasicQueries = {CARDINALITY_QUERY};
+        
+        // TODO: Remove query
+        private readonly Dictionary<string, (string query, long level, SignedQuery signedData)> _queries =
+	        new Dictionary<string, (string query, long level, SignedQuery signedData)>();
 	    private ValueSet _contacts = new ValueSet(AttributeTypePrimitive.Contact);
 	    
         private readonly int _recomputeTimer;
         private readonly int _purgeTimer;
         private int _timerRequestId = 0;
-
-        private const string CARDINALITY_QUERY = "SELECT sum(cardinality) AS cardinality";
         
         public ZMIModule(ZMI zmi, RSA rsa, int recomputeTimer, int purgeTimer, IExecutor executor)
         {
@@ -51,9 +54,6 @@ namespace CloudAtlasAgent.Modules
         {
 	        // Add basic attributes
 	        _zmi.Attributes.AddOrChange("cardinality", new ValueInt(1));
-	        
-	        // Add basic queries
-	        _queries.Add("cardinality", CARDINALITY_QUERY);
         }
         
         private void SendRecomputeQueries()
@@ -114,6 +114,7 @@ namespace CloudAtlasAgent.Modules
 						        zmiAskMessage.Source,
 						        _zmi,
 						        _contacts.Select(v => v as ValueContact).Where(v => v != null).ToList(),
+						        _queries.Select(pair => (name: pair.Key, pair.Value.level, signed: pair.Value.signedData)).ToList(),
 						        zmiAskMessage.Guid));
 					        continue;
 				        case ZMIRecomputeQueriesMessage _:
@@ -122,6 +123,7 @@ namespace CloudAtlasAgent.Modules
 				        case ZMIProcessGossipedMessage gossipedMessage:
 					        Logger.Log($"Processing gossiped message :)\n");
 					        _zmi.UpdateZMI(gossipedMessage.Gossiped, gossipedMessage.Delay);
+					        AddGossipedQueries(gossipedMessage.Queries);
 					        continue;
 				        case ZMIPurgeMessage _:
 					        Logger.Log("The Purge has been announced");
@@ -207,12 +209,8 @@ namespace CloudAtlasAgent.Modules
 	        Logger.Log($"InstallQuery({requestMessage.Query})");
 
 	        var (serializedData, hashSign) = requestMessage.Query;
-	        
-	        using var sha256 = SHA256.Create();
-	        var hash = sha256.ComputeHash(serializedData);
-	        var verified = _rsa.VerifyHash(hash, hashSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
-	        if (!verified)
+	        if (!VerifyMessage(serializedData, hashSign))
 	        {
 		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
 			        false));
@@ -221,39 +219,9 @@ namespace CloudAtlasAgent.Modules
 
 	        var (innerQueries, name) = CustomSerializer.Serializer.Deserialize<SignRequest>(serializedData);
 
-	        bool queryExecuted;
-
-	        if (!_queries.TryAdd(name, innerQueries))
-	        {
-		        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source,
-			        requestMessage, false));
-		        // TODO: Remove query from signer
-		        return;
-	        }
-
-	        try
-	        {
-		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), innerQueries);
-		        queryExecuted = true;
-	        }
-	        catch (Exception e)
-	        {
-		        Logger.LogException(e);
-		        queryExecuted = false;
-	        }
-
-	        // The Fallback
-	        if (!queryExecuted)
-		        _queries.Remove(name);
-
-	        if (queryExecuted)
-	        {
-		        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
-		        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("update", updateTimestamp));
-	        }
-
+	        var queryInstalled = TryInstallQuery(name, innerQueries, _zmi.GetLevel(), requestMessage.Query);
 	        _executor.AddMessage(new InstallQueryResponseMessage(GetType(), requestMessage.Source, requestMessage,
-		        queryExecuted));
+		        queryInstalled));
         }
 
         private void UninstallQuery(UninstallQueryRequestMessage requestMessage)
@@ -312,8 +280,67 @@ namespace CloudAtlasAgent.Modules
 	        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
 	        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("update", updateTimestamp));
 
-	        foreach (var query in _queries.Values)
+	        foreach (var query in BasicQueries)
 		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query);
+
+	        foreach (var (query, lvl, _) in _queries.Values)
+		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), query, lvl);
+        }
+
+        private void AddGossipedQueries(IEnumerable<(long, SignedQuery)> queries)
+        {
+	        foreach (var (level, query) in queries)
+	        {
+		        var (serializedData, hashSign) = query;
+
+		        using var sha256 = SHA256.Create();
+		        var hash = sha256.ComputeHash(serializedData);
+		        var verified = _rsa.VerifyHash(hash, hashSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+		        if (!verified)
+			        continue;
+
+		        var (innerQueries, name) = CustomSerializer.Serializer.Deserialize<SignRequest>(serializedData);
+		        TryInstallQuery(name, innerQueries, level, query);
+	        }
+        }
+
+        private bool VerifyMessage(byte[] serializedData, byte[] hashSign)
+        {
+	        using var sha256 = SHA256.Create();
+	        var hash = sha256.ComputeHash(serializedData);
+	        return _rsa.VerifyHash(hash, hashSign, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+        }
+
+        private bool TryInstallQuery(string name, string innerQueries, long level, SignedQuery signedQuery)
+        {
+	        bool queryExecuted;
+	        
+	        if (!_queries.TryAdd(name, (innerQueries, level, signedQuery)))
+		        return false;
+
+	        try
+	        {
+		        Interpreter.Interpreter.ExecuteQueries(_zmi.GetFather(), innerQueries, level);
+		        queryExecuted = true;
+	        }
+	        catch (Exception e)
+	        {
+		        Logger.LogException(e);
+		        queryExecuted = false;
+	        }
+
+	        // The Fallback
+	        if (!queryExecuted)
+		        _queries.Remove(name);
+
+	        if (queryExecuted)
+	        {
+		        var updateTimestamp = new ValueTime(DateTimeOffset.Now);
+		        _zmi.ApplyUpToFather(z => z.Attributes.AddOrChange("update", updateTimestamp));
+	        }
+
+	        return queryExecuted;
         }
     }
 }

@@ -41,7 +41,7 @@ namespace Interpreter
 				}
 				
 				var query = inputLine.Length == 2 ? inputLine[1] : inputLine[0];
-				Interpreter.ExecuteQueries(_root, query.TrimEnd(';'), true);
+				Interpreter.ExecuteQueries(_root, query.TrimEnd(';'), long.MaxValue, true);
 			}
 		}
 	}
