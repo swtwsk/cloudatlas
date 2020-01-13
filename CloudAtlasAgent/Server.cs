@@ -19,7 +19,7 @@ namespace CloudAtlasAgent
 			[Option('k', "key", Required = true, HelpText = "Path to public key")]
 			public string PublicKeyPath { get; set; }
 			
-			[Option('c', "config", Default = "zmis.txt", HelpText = "ZMI config file path")]
+			[Option('c', "config", Default = null, HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
 			
 			[Option('i', "inifile", Required = true, HelpText = "Location of .ini file")]
@@ -58,10 +58,10 @@ namespace CloudAtlasAgent
 			Parser.Default.ParseArguments<Options>(args)
 				.WithParsed(opts =>
 				{
-					if (!TryParseConfig(opts.ConfigFile, out fatherZmi))
-						Environment.Exit(1);
 					zmiName = opts.ZmiName.Trim(' ');
-					
+					if (string.IsNullOrEmpty(opts.ConfigFile) || !TryParseConfig(opts.ConfigFile, out fatherZmi))
+						fatherZmi = ZMI.FromPathName(zmiName);
+
 					using var file = File.OpenRead(opts.IniFileName);
 					using var stream = new StreamReader(file);
 					configuration = INIParser.ParseIni(stream);

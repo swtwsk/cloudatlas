@@ -19,6 +19,41 @@ namespace Shared.Model
             Father = father;
         }
 
+        public static ZMI FromPathName(string pathName)
+        {
+            var root = new ZMI();
+
+            var paths = pathName.Split("/");
+
+            if (paths[0] == string.Empty)
+                paths = paths.Skip(1).ToArray();
+
+            var current = root;
+            var level = 0;
+            root.AddBasicAttributes(string.Empty, pathName, level);
+            
+            foreach (var pathPart in paths)
+            {
+                var newZmi = new ZMI(current);
+                current.AddSon(newZmi);
+                
+                level++;
+                newZmi.AddBasicAttributes(pathPart, pathName, level);
+                
+                current = newZmi;
+            }
+
+            return root;
+        }
+
+        private void AddBasicAttributes(string name, string ownerName, int level)
+        {
+            Attributes.Add("name", new ValueString(name));
+            Attributes.Add("level", new ValueInt(level));
+            Attributes.Add("owner", new ValueString(ownerName));
+            Attributes.Add("contacts", new ValueSet(AttributeTypePrimitive.Contact));
+        }
+
         public void AddSon(ZMI son) => Sons.Add(son);
         public void RemoveSon(ZMI son) => Sons.Remove(son);
         
@@ -144,13 +179,13 @@ namespace Shared.Model
                 zmi = null;
                 return false;
             }
-            
+
             if (paths.Count == depth && paths[depth - 1] == Name)
             {
                 zmi = this;
                 return true;
             }
-            
+
             foreach (var son in Sons)
             {
                 var found = son.TrySearch(paths, depth + 1, out zmi);
