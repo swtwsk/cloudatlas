@@ -209,9 +209,19 @@ namespace Interpreter.Query
                         : list)), attributes, true);
             var result = new CondExprVisitor(_zmi, env).Visit(context.cond_expr());
 
-            return result.Bind(res => alias == null
-                ? new QueryResult(res.Value).Just()
-                : new QueryResult(new Attribute(alias.GetText()), res.Value).Just());
+            return result.Bind(res =>
+            {
+                switch (res)
+                {
+                    case ResultSingle _:
+                        break;
+                    default:
+                        throw new ArgumentException("Could not return result which is not aggregated");
+                }
+                return alias == null
+                    ? new QueryResult(res.Value).Just()
+                    : new QueryResult(new Attribute(alias.GetText()), res.Value).Just();
+            });
         }
     }
 
