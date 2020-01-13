@@ -22,11 +22,23 @@ namespace CloudAtlasAgent
 			[Option('c', "config", Default = null, HelpText = "ZMI config file path")]
 			public string ConfigFile { get; set; }
 			
-			[Option('i', "inifile", Required = true, HelpText = "Location of .ini file")]
+			[Option('i', "inifile", Default = null, HelpText = "Location of .ini file")]
 			public string IniFileName { get; set; }
 			
 			[Option('n', "name", Required = true, HelpText = "Name of ZMI node")]
 			public string ZmiName { get; set; }
+			
+			[Option('h', "host", Default = "127.0.0.1", HelpText = "Receiver host IP")]
+			public string ReceiverHost { get; set; }
+			
+			[Option('p', "port", Default = 5000, HelpText = "Receiver port")]
+			public int ReceiverPort { get; set; }
+
+			[Option("rpc", Default = "127.0.0.1", HelpText = "RPC host IP")]
+			public string RpcHost { get; set; }
+			
+			[Option("rpcport", Default = 5001, HelpText = "RPC port number")]
+			public int RpcPort { get; set; }
 		}
 
 		private static bool TryParseConfig(string pathToConfig, out ZMI zmi)
@@ -52,6 +64,10 @@ namespace CloudAtlasAgent
 			var zmiName = string.Empty;
 			ZMI fatherZmi = null;
 			RSA rsa = null;
+			var receiverHost = string.Empty;
+			var receiverPort = 0;
+			var rpcHost = string.Empty;
+			var rpcPort = 0;
 
 			IDictionary<string, string> configuration = new Dictionary<string, string>();
 
@@ -62,11 +78,19 @@ namespace CloudAtlasAgent
 					if (string.IsNullOrEmpty(opts.ConfigFile) || !TryParseConfig(opts.ConfigFile, out fatherZmi))
 						fatherZmi = ZMI.FromPathName(zmiName);
 
+					receiverHost = opts.ReceiverHost;
+					receiverPort = opts.ReceiverPort;
+					rpcHost = opts.RpcHost;
+					rpcPort = opts.RpcPort;
+					
+					rsa = RSAFactory.FromPublicKey(opts.PublicKeyPath);
+					
+					if (string.IsNullOrEmpty(opts.IniFileName))
+						return;
+
 					using var file = File.OpenRead(opts.IniFileName);
 					using var stream = new StreamReader(file);
 					configuration = INIParser.ParseIni(stream);
-
-					rsa = RSAFactory.FromPublicKey(opts.PublicKeyPath);
 				})
 				.WithNotParsed(errs =>
 				{
@@ -85,7 +109,7 @@ namespace CloudAtlasAgent
 			}
 			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
 
-			var manager = ManagerFromIni(configuration, rsa, myZmi);
+			var manager = ManagerFromIni(receiverHost, receiverPort, rpcHost, rpcPort, configuration, rsa, myZmi);
 			
 			Console.WriteLine("Press ENTER to exit...");
 			Console.ReadLine();
@@ -93,16 +117,9 @@ namespace CloudAtlasAgent
 			manager.Dispose();
 		}
 
-		private static ModulesManager ManagerFromIni(IDictionary<string, string> configuration, RSA rsa, ZMI zmi)
+		private static ModulesManager ManagerFromIni(string receiverHost, int receiverPort, string rpcHost, int rpcPort,
+			IDictionary<string, string> configuration, RSA rsa, ZMI zmi)
 		{
-			if (!configuration.TryGetValue("receiverHost", out var receiverHost))
-				receiverHost = "127.0.0.1";
-			if (!configuration.TryGetInt("receiverPort", out var receiverPort))
-				receiverPort = 5000;
-			if (!configuration.TryGetValue("rpcHost", out var rpcHost))
-				rpcHost = "127.0.0.1";
-			if (!configuration.TryGetInt("rpcPort", out var rpcPort))
-				rpcPort = 5001;
 			if (!configuration.TryGetInt("queryInterval", out var queryInterval))
 				queryInterval = 5;
 			if (!configuration.TryGetInt("gossipInterval", out var gossipInterval))
