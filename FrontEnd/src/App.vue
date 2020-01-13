@@ -24,6 +24,11 @@
                 <strong>CloudAtlas client does not respond. Check your connection.</strong>
             </div>
         </b-container>
+        <footer class="footer fixed-bottom">
+            <b-container class="bg-light" style="max-width: 100%;">
+                <NodeChanger/>
+            </b-container>
+        </footer>
     </div>
 </template>
 
@@ -31,13 +36,17 @@
 import ListZMI from './components/ListZMI.vue'
 import Attributes from './components/Attributes.vue'
 import QueryEditor from './components/QueryEditor.vue'
+import NodeChanger from './components/NodeChanger.vue'
+
+// margin: 0 20%
 
 export default {
     name: 'app',
     components: {
         ListZMI,
         Attributes,
-        QueryEditor
+        QueryEditor,
+        NodeChanger
     },
     data() {
         return {

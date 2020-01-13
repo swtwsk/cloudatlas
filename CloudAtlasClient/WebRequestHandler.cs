@@ -1,16 +1,15 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Grpc.Core;
 using Nancy;
-using Nancy.Configuration;
 using Nancy.Conventions;
 using Nancy.Extensions;
 using Nancy.TinyIoc;
 using Newtonsoft.Json;
 using Shared;
 using Shared.Model;
-using Shared.Monads;
 using Shared.RPC;
 
 namespace CloudAtlasClient
@@ -18,6 +17,8 @@ namespace CloudAtlasClient
     public sealed class WebRequestHandler : NancyModule
     {
         private readonly IServerData _serverData;
+
+        private const int RPC_TIMEOUT_SECONDS = 5;
         
         public WebRequestHandler(IServerData serverData)
         {
@@ -69,7 +70,8 @@ namespace CloudAtlasClient
             {
                 string name = parameters.name;
                 using var call = GetSignerInvoker()
-                    .AsyncUnaryCall(SignerMethods.UnsignQuery, null, new CallOptions(), name);
+                    .AsyncUnaryCall(SignerMethods.UnsignQuery, null,
+                        new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), name);
                 
                 var unsignQuery = await call.ResponseAsync;
                 if (!unsignQuery.UnsignSuccessful)
@@ -77,6 +79,20 @@ namespace CloudAtlasClient
                 
                 var result = await UninstallAsync(GetInvoker(), unsignQuery);
                 return Response.AsJson(result);
+            });
+            Post("/agent", async parameters =>
+            {
+                var requestBody = Request.Body.AsString();
+                var dict = JsonConvert.DeserializeObject<Dictionary<string, string>>(requestBody);
+                if (!dict.TryGetValue("host", out var host))
+                    return false;
+                if (!dict.TryGetInt("port", out var port))
+                    return false;
+
+                _serverData.HostName = host;
+                _serverData.PortNumber = port;
+                
+                return true;
             });
         }
 
@@ -88,7 +104,9 @@ namespace CloudAtlasClient
 
             var name = q[0];
             var innerQuery = q[1];
-            using var call = invoker.AsyncUnaryCall(SignerMethods.SignQuery, null, new CallOptions(), new SignRequest{Name = name, Query = innerQuery});
+            using var call = invoker.AsyncUnaryCall(SignerMethods.SignQuery, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)),
+                new SignRequest {Name = name, Query = innerQuery});
             return await call.ResponseAsync;
         }
 
@@ -106,13 +124,15 @@ namespace CloudAtlasClient
         
         private static async Task<HashSet<string>> GetZones(CallInvoker invoker)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.GetZones, null, new CallOptions(), new Empty());
+            using var call = invoker.AsyncUnaryCall(AgentMethods.GetZones, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), new Empty());
             return await call.ResponseAsync;
         }
         
         private static async Task<Dictionary<string, IsNumericResponse>> GetAttributes(CallInvoker invoker, string pathName)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.GetAttributes, null, new CallOptions(), pathName);
+            using var call = invoker.AsyncUnaryCall(AgentMethods.GetAttributes, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), pathName);
             var result = await call.ResponseAsync;
 
             bool IsNumeric(AttributeType attributeType) =>
@@ -130,20 +150,23 @@ namespace CloudAtlasClient
         
         private static async Task<HashSet<string>> GetQueries(CallInvoker invoker)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.GetQueries, null, new CallOptions(), new Empty());
+            using var call = invoker.AsyncUnaryCall(AgentMethods.GetQueries, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), new Empty());
             return await call.ResponseAsync;
         }
         
         private static async Task<bool> InstallAsync(CallInvoker invoker, SignedQuery query)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.InstallQuery, null, new CallOptions(), query);
+            using var call = invoker.AsyncUnaryCall(AgentMethods.InstallQuery, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), query);
             var result = await call.ResponseAsync;
             return result.Ref;
         }
         
         private static async Task<bool> UninstallAsync(CallInvoker invoker, UnsignQuery unsignResponse)
         {
-            using var call = invoker.AsyncUnaryCall(AgentMethods.UninstallQuery, null, new CallOptions(), unsignResponse);
+            using var call = invoker.AsyncUnaryCall(AgentMethods.UninstallQuery, null,
+                new CallOptions(deadline: DateTime.UtcNow.AddSeconds(RPC_TIMEOUT_SECONDS)), unsignResponse);
             var result = await call.ResponseAsync;
             return result.Ref;
         }

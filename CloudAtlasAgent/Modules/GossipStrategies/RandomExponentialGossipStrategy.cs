@@ -9,7 +9,7 @@ namespace CloudAtlasAgent.Modules.GossipStrategies
             var x = Random.NextDouble();
             // Using discrete geometric distribution, as it decreases exponentially
             var got = Math.Min(
-                maxLevel, 
+                maxLevel + 1, 
                 (int) Math.Floor(Math.Log(x, Math.E) / Math.Log(0.5, Math.E)) + 1);
             return got;
         }
