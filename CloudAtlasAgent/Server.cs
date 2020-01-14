@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net;
 using System.Security.Cryptography;
 using CloudAtlasAgent.Modules.GossipStrategies;
 using CommandLine;
@@ -108,6 +109,11 @@ namespace CloudAtlasAgent
 				Environment.Exit(1);
 			}
 			myZmi.Attributes.AddOrChange("timestamp", creationTimestamp);
+			myZmi.Attributes.AddOrChange("contacts",
+				new ValueSet(
+					new HashSet<Value>(new[]
+						{new ValueContact(myZmi.PathName, IPAddress.Parse(receiverHost), receiverPort)}),
+					AttributeTypePrimitive.Contact));
 
 			var manager = ManagerFromIni(receiverHost, receiverPort, rpcHost, rpcPort, configuration, rsa, myZmi);
 			
