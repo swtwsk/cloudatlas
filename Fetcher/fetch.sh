@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CPU_LOAD="$(uptime | rev | cut -d ':' -f 1 | rev | cut -d ',' -f1-2 | sed 's/,/./g')"
+CPU_LOAD="$(uptime | rev | cut -d ':' -f 1 | rev | sed 's/,/./g' | cut -d '.' -f1-2)"
 NUM_CORES="$(nproc)"
 KERNEL_VER="$(uname -r)"
 NUM_PROCESSES="$(ps -aux | sed '1d' | wc -l)"
