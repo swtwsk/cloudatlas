@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using CommandLine;
 using Grpc.Core;
+using Shared.Logger;
 using Shared.Model;
 using Shared.Parsers;
 using Shared.RPC;
@@ -104,10 +105,14 @@ namespace Fetcher
 
                 var channel = new Channel(hostName, portNumber, ChannelCredentials.Insecure);
                 var invoker = new DefaultCallInvoker(channel);
-
                 await ProcessFile(invoker, zmiName, fileName)
                     .ContinueWith(async _ => await channel.ShutdownAsync(), token);
-                await ProcessContactsFile(invoker);
+                
+                var channel2 = new Channel(hostName, portNumber, ChannelCredentials.Insecure);
+                var invoker2 = new DefaultCallInvoker(channel2);
+                await ProcessContactsFile(invoker2)
+                    .ContinueWith(async _ => await channel2.ShutdownAsync(), token);
+                
                 await Task.Delay(collectionInterval, token);
             }
         }
@@ -134,18 +139,25 @@ namespace Fetcher
 
         private static async Task ProcessContactsFile(CallInvoker invoker)
         {
-            if (string.IsNullOrEmpty(_contactsFilename))
-                return;
-            
-            await using var file = File.OpenRead(_contactsFilename);
-            var stream = new StreamReader(file);
-            string line;
-            if ((line = stream.ReadLine()) != null)
+            try
             {
-                ZMIParser.TryParseAttributeLine(line, out var attribute, out var value);
+                if (string.IsNullOrEmpty(_contactsFilename))
+                    return;
 
-                if (attribute.Name == "contacts" && value.AttributeType.IsCompatible(ContactSetAttribute))
-                    await SetContacts(invoker, (ValueSet) value);
+                await using var file = File.OpenRead(_contactsFilename);
+                var stream = new StreamReader(file);
+                string line;
+                if ((line = stream.ReadLine()) != null)
+                {
+                    ZMIParser.TryParseAttributeLine(line, out var attribute, out var value);
+
+                    if (attribute.Name == "contacts" && value.AttributeType.IsCompatible(ContactSetAttribute))
+                        await SetContacts(invoker, (ValueSet) value);
+                }
+            }
+            catch (Exception e)
+            {
+                Logger.LogException(e);
             }
         }
 
