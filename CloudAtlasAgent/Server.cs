@@ -114,6 +114,7 @@ namespace CloudAtlasAgent
 					new HashSet<Value>(new[]
 						{new ValueContact(myZmi.PathName, IPAddress.Parse(receiverHost), receiverPort)}),
 					AttributeTypePrimitive.Contact));
+			myZmi.Attributes.AddOrChange("isSingleton", new ValueBoolean(true));
 
 			var manager = ManagerFromIni(receiverHost, receiverPort, rpcHost, rpcPort, configuration, rsa, myZmi);
 			

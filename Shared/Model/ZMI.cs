@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using Shared.Monads;
 using Shared.Parsers;
 
 namespace Shared.Model
@@ -224,13 +225,17 @@ namespace Shared.Model
             Father?.ApplyUpToFather(func);
         }
 
-        public void PurgeTime(ValueTime purgeMoment)
+        public void PurgeTime(ValueTime purgeMoment) => PurgeTime(purgeMoment, out _);
+        
+        public void PurgeTime(ValueTime purgeMoment, out ISet<ValueContact> contactsToRemove)
         {
             var sonsToRemove = new HashSet<ZMI>();
-            
+            contactsToRemove = new HashSet<ValueContact>();
+
             foreach (var son in Sons)
             {
-                son.PurgeTime(purgeMoment);
+                son.PurgeTime(purgeMoment, out var sonContactsToRemove);
+                contactsToRemove.UnionWith(sonContactsToRemove);
 
                 // TODO: think about it, what about ZMIs without update attr?
                 if (!son.Attributes.TryGetValue("update", out var updateVal) || !(updateVal is ValueTime update))
@@ -244,7 +249,35 @@ namespace Shared.Model
             }
 
             foreach (var toRemove in sonsToRemove)
-                RemoveSon(toRemove);
+            {
+                PurgeSon(toRemove, out var sonContactToRemove);
+                if (sonContactToRemove.HasValue)
+                    contactsToRemove.Add(sonContactToRemove.Val);
+            }
+
+            if (Attributes.TryGetValue("contacts", out var currentContacts) &&
+                currentContacts is ValueSet currentContactsSet &&
+                currentContactsSet.AttributeType.IsCompatible(new AttributeTypeCollection(PrimaryType.Set,
+                    AttributeTypePrimitive.Contact)))
+            {
+                currentContactsSet.ExceptWith(contactsToRemove);
+                Attributes.AddOrChange("contacts", currentContactsSet);
+            }
+        }
+
+        private void PurgeSon(ZMI toPurge, out Maybe<ValueContact> contactToRemove)
+        {
+            contactToRemove = Maybe<ValueContact>.Nothing;
+            
+            if (toPurge.Attributes.TryGetValue("isSingleton", out var isSingletonAttr) && !isSingletonAttr.IsNull &&
+                isSingletonAttr is ValueBoolean isSingleton && isSingleton.Value.Ref &&
+                toPurge.Attributes.TryGetValue("contacts", out var contactsAttr) && !contactsAttr.IsNull &&
+                contactsAttr is ValueSet contactsSet && contactsSet.Count == 1)
+            {
+                contactToRemove = ((ValueContact) contactsSet.First()).Just();
+            }
+
+            RemoveSon(toPurge);
         }
 
         public void PurgeCardinality()

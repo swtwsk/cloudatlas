@@ -303,6 +303,7 @@ namespace CloudAtlasAgent.Modules
                 }
             }
             catch (ThreadInterruptedException) {}
+            catch (ObjectDisposedException) {}
             catch (Exception e) { Logger.LogException(e); }
         }
 
