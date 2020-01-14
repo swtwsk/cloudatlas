@@ -1,15 +1,13 @@
 #!/bin/bash
 
-if [[ "$#" -lt 4 ]]; then
+if [[ "$#" -ne 4 ]]; then
     echo "Illegal number of parameters"
-    echo "Proper usage: $0 nodeIndex host recvPort rpcPort [release]"
+    echo "Proper usage: $0 nodeIndex host recvPort rpcPort"
     exit 1
 fi
 
-if [[ "$#" -eq 5 ]]; then
-    # Create Release dlls
-    dotnet publish -c Release
-fi
+# Create Release dlls
+dotnet publish -c Release
 
 RECVHOST=$2
 RECVPORT=$3

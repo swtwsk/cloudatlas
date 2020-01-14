@@ -14,23 +14,5 @@
         <ProjectReference Include="..\Shared\Shared.csproj" />
         <ProjectReference Include="..\Interpreter\Interpreter.csproj" />
     </ItemGroup>
-    
-    <ItemGroup>
-        <Content Include="oldZmis.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="zmis.txt">
-            <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="zmis2.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="zmis3.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-        <Content Include="zmis4.txt">
-          <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-        </Content>
-    </ItemGroup>
 
 </Project>
