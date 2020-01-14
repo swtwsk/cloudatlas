@@ -65,7 +65,14 @@ namespace Shared.Model
             if (obj == null || GetType() != obj.GetType())
                 return false;
 
-            return ((ValueBoolean) IsEqual((Value) obj)).Value.Ref;
+            try
+            {
+                return ((ValueBoolean) IsEqual((Value) obj)).Value.Ref;
+            }
+            catch (System.Exception)
+            {
+                return false;
+            }
         }
 
         public override string ToString() => ((ValueString) ConvertTo(AttributeTypePrimitive.String)).Value;
